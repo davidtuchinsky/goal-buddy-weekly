@@ -152,19 +152,18 @@ export function DayCard({
           {instances.map((t) => {
             const obj = objectiveById(t.objectiveId);
             const color = obj ? objectiveColor(obj) : undefined;
-              return (
-                <SortableTask
-                  key={t.id}
-                  task={t}
-                  color={color}
-                  onToggle={() => onToggle(t)}
-                  onRemove={() => onRemove(t)}
-                />
-              );
-            })}
-          </ul>
-        </SortableContext>
-      </DndContext>
+            return (
+              <SortableTask
+                key={t.id}
+                task={t}
+                color={color}
+                onToggle={() => onToggle(t)}
+                onRemove={() => onRemove(t)}
+              />
+            );
+          })}
+        </ul>
+      </SortableContext>
 
       {/* Library picker */}
       {showLibrary && (
