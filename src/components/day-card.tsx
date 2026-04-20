@@ -42,7 +42,6 @@ type Props = {
   onRemove: (instance: TaskInstance) => void;
   onAddAdHoc: (text: string, objectiveId?: string) => void;
   onAddFromLibrary: (lib: LibraryTask) => void;
-  onReorderWithinDay: (orderedIds: string[]) => void;
   onCopyUnfinishedToNext: () => void;
   onToggleRitual: (ritualId: string) => void;
 };
@@ -60,7 +59,6 @@ export function DayCard({
   onRemove,
   onAddAdHoc,
   onAddFromLibrary,
-  onReorderWithinDay,
   onCopyUnfinishedToNext,
   onToggleRitual,
 }: Props) {
