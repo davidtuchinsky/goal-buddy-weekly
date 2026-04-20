@@ -469,9 +469,6 @@ function Index() {
                         onAddFromLibrary={(lib) =>
                           addFromLibrary(dayName, lib)
                         }
-                        onReorderWithinDay={(ids) =>
-                          applyOrderForDay(dayName, ids)
-                        }
                         onCopyUnfinishedToNext={() =>
                           copyUnfinishedToNext(dayName)
                         }
