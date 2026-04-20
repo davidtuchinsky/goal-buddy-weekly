@@ -10,6 +10,34 @@ export const DAYS = [
 
 export type DayName = (typeof DAYS)[number];
 
+/** Saturday-first ordering used for the recurrence picker (S M T W T F S). */
+export const DAYS_SAT_FIRST: DayName[] = [
+  "Saturday",
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+];
+
+/** Single-letter labels (S M T W T F S order matches DAYS_SAT_FIRST). */
+export const DAY_INITIAL: Record<DayName, string> = {
+  Saturday: "S",
+  Sunday: "S",
+  Monday: "M",
+  Tuesday: "T",
+  Wednesday: "W",
+  Thursday: "T",
+  Friday: "F",
+};
+
+/** Return the next day name in week sequence (Mon→Tue, …, Sun→Mon). */
+export function nextDay(day: DayName): DayName {
+  const i = DAYS.indexOf(day);
+  return DAYS[(i + 1) % DAYS.length];
+}
+
 /** Returns the Monday (00:00 local) of the week containing `date`. */
 export function startOfWeek(date: Date): Date {
   const d = new Date(date);

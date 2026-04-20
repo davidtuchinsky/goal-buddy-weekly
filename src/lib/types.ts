@@ -59,6 +59,42 @@ export type TaskInstance = {
   objectiveId?: string;
   day: DayName;
   done: boolean;
+  /** Sort order within the day (lower = earlier). */
+  order?: number;
+};
+
+export type EnergySlot = "before" | "mid" | "after";
+
+export const ENERGY_SLOTS: { id: EnergySlot; label: string; short: string }[] =
+  [
+    { id: "before", label: "Before work", short: "Before" },
+    { id: "mid", label: "Midday", short: "Mid" },
+    { id: "after", label: "After work", short: "After" },
+  ];
+
+export type EnergyRitual = {
+  id: string;
+  text: string;
+  slot: EnergySlot;
+  createdAt: number;
+};
+
+export type BacklogSubBullet = {
+  id: string;
+  text: string;
+};
+
+export type BacklogItem = {
+  id: string;
+  text: string;
+  subBullets: BacklogSubBullet[];
+  createdAt: number;
+};
+
+export type RadarItem = {
+  id: string;
+  text: string;
+  createdAt: number;
 };
 
 /** Per-week storage: only ad-hoc instances + completion overrides for recurring instances. */
@@ -75,12 +111,23 @@ export type WeekState = {
    * Key: `${libraryId}:${day}`.
    */
   recurringSkipped: Record<string, boolean>;
+  /**
+   * Sort order overrides for recurring instances within a day.
+   * Key: `${libraryId}:${day}` — value: order number.
+   */
+  recurringOrder?: Record<string, number>;
+  /**
+   * Energy ritual completion. Key: `${ritualId}:${day}` — value: true.
+   */
+  energyDone?: Record<string, boolean>;
 };
 
 export const EMPTY_WEEK: WeekState = {
   adHoc: [],
   recurringDone: {},
   recurringSkipped: {},
+  recurringOrder: {},
+  energyDone: {},
 };
 
 /* ============================================================
@@ -89,6 +136,10 @@ export const EMPTY_WEEK: WeekState = {
 
 export function recurringKey(libraryId: string, day: DayName): string {
   return `${libraryId}:${day}`;
+}
+
+export function energyKey(ritualId: string, day: DayName): string {
+  return `${ritualId}:${day}`;
 }
 
 export function objectiveColor(obj: Objective | undefined | null): string {
