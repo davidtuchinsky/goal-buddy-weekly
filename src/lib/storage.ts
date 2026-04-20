@@ -1,24 +1,32 @@
 import { useEffect, useState } from "react";
 
 export function useLocalStorage<T>(key: string, initial: T) {
-  const [value, setValue] = useState<T>(() => {
-    if (typeof window === "undefined") return initial;
+  // Always start with `initial` so SSR and the first client render match.
+  const [value, setValue] = useState<T>(initial);
+  const [hydrated, setHydrated] = useState(false);
+
+  // After mount, hydrate from localStorage (client-only).
+  useEffect(() => {
     try {
       const raw = window.localStorage.getItem(key);
-      return raw ? (JSON.parse(raw) as T) : initial;
+      if (raw) setValue(JSON.parse(raw) as T);
     } catch {
-      return initial;
+      /* ignore parse errors */
     }
-  });
+    setHydrated(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
 
+  // Persist changes — but only after we've hydrated, to avoid clobbering
+  // stored data with the `initial` value on first mount.
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (!hydrated) return;
     try {
       window.localStorage.setItem(key, JSON.stringify(value));
     } catch {
       /* ignore quota errors */
     }
-  }, [key, value]);
+  }, [key, value, hydrated]);
 
   return [value, setValue] as const;
 }
