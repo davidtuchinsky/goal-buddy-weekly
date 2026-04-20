@@ -31,7 +31,9 @@ import {
   uid,
   type BacklogItem,
   type LibraryTask,
+  type ObjectiveKind,
   type TaskInstance,
+  type TaskZone,
   type WeekState,
 } from "@/lib/types";
 import { ObjectivesPanel } from "@/components/objectives-panel";
@@ -85,9 +87,11 @@ function Index() {
         libraryId: lib.id,
         text: lib.text,
         objectiveId: lib.objectiveId,
+        kind: lib.kind ?? "work",
         day,
         done: !!week.recurringDone[k],
         order: week.recurringOrder?.[k],
+        zone: (week.recurringZone?.[k] ?? 0) as TaskZone,
       });
     }
     const adHoc = week.adHoc.filter((t) => t.day === day);
