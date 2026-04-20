@@ -139,20 +139,19 @@ export function DayCard({
         </div>
       )}
 
-      <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-        <SortableContext
-          items={instances.map((t) => t.id)}
-          strategy={verticalListSortingStrategy}
-        >
-          <ul className="flex-1 space-y-1">
-            {instances.length === 0 && (
-              <li className="py-2 text-sm italic text-muted-foreground/70">
-                Nothing planned.
-              </li>
-            )}
-            {instances.map((t) => {
-              const obj = objectiveById(t.objectiveId);
-              const color = obj ? objectiveColor(obj) : undefined;
+      <SortableContext
+        items={instances.map((t) => t.id)}
+        strategy={verticalListSortingStrategy}
+      >
+        <ul className="flex-1 space-y-1">
+          {instances.length === 0 && (
+            <li className="py-2 text-sm italic text-muted-foreground/70">
+              Nothing planned.
+            </li>
+          )}
+          {instances.map((t) => {
+            const obj = objectiveById(t.objectiveId);
+            const color = obj ? objectiveColor(obj) : undefined;
               return (
                 <SortableTask
                   key={t.id}
