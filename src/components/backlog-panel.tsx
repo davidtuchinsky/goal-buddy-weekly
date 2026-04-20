@@ -60,7 +60,7 @@ export function BacklogPanel({
             Future
           </p>
           <h2 className="font-display text-xl font-medium text-ink">
-            Backlog
+            Upcoming projects / tasks
           </h2>
         </div>
         {open ? (

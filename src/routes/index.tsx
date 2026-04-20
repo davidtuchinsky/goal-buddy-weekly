@@ -31,7 +31,9 @@ import {
   uid,
   type BacklogItem,
   type LibraryTask,
+  type ObjectiveKind,
   type TaskInstance,
+  type TaskZone,
   type WeekState,
 } from "@/lib/types";
 import { ObjectivesPanel } from "@/components/objectives-panel";
@@ -85,9 +87,11 @@ function Index() {
         libraryId: lib.id,
         text: lib.text,
         objectiveId: lib.objectiveId,
+        kind: lib.kind ?? "work",
         day,
         done: !!week.recurringDone[k],
         order: week.recurringOrder?.[k],
+        zone: (week.recurringZone?.[k] ?? 0) as TaskZone,
       });
     }
     const adHoc = week.adHoc.filter((t) => t.day === day);
@@ -136,7 +140,13 @@ function Index() {
     }
   };
 
-  const addAdHoc = (day: DayName, text: string, objectiveId?: string) => {
+  const addAdHoc = (
+    day: DayName,
+    text: string,
+    objectiveId?: string,
+    kind: ObjectiveKind = "work",
+    zone: TaskZone = 0,
+  ) => {
     setWeek({
       ...week,
       adHoc: [
@@ -145,15 +155,21 @@ function Index() {
           id: uid(),
           text: text.trim(),
           objectiveId,
+          kind,
           day,
           done: false,
           order: nextOrder(day),
+          zone,
         },
       ],
     });
   };
 
-  const addFromLibrary = (day: DayName, lib: LibraryTask) => {
+  const addFromLibrary = (
+    day: DayName,
+    lib: LibraryTask,
+    zone: TaskZone = 0,
+  ) => {
     setWeek({
       ...week,
       adHoc: [
@@ -163,12 +179,45 @@ function Index() {
           libraryId: lib.id,
           text: lib.text,
           objectiveId: lib.objectiveId,
+          kind: lib.kind ?? "work",
           day,
           done: false,
           order: nextOrder(day),
+          zone,
         },
       ],
     });
+  };
+
+  const updateInstanceText = (t: TaskInstance, text: string) => {
+    if (t.libraryId && t.id.startsWith("rec:")) {
+      // Editing a recurring instance: convert it into an ad-hoc copy and skip the recurring source for this week.
+      const k = recurringKey(t.libraryId, t.day);
+      setWeek({
+        ...week,
+        recurringSkipped: { ...week.recurringSkipped, [k]: true },
+        adHoc: [
+          ...week.adHoc,
+          {
+            id: uid(),
+            text,
+            objectiveId: t.objectiveId,
+            kind: t.kind ?? "work",
+            day: t.day,
+            done: t.done,
+            order: t.order ?? nextOrder(t.day),
+            zone: t.zone ?? 0,
+          },
+        ],
+      });
+    } else {
+      setWeek({
+        ...week,
+        adHoc: week.adHoc.map((x) =>
+          x.id === t.id ? { ...x, text } : x,
+        ),
+      });
+    }
   };
 
   const nextOrder = (day: DayName): number => {
@@ -200,14 +249,25 @@ function Index() {
     setWeek(next);
   };
 
-  /** Move an instance from one day to another (drag across). */
-  const moveInstanceToDay = (instanceId: string, targetDay: DayName) => {
+  /** Move an instance to a (day, zone). */
+  const moveInstanceTo = (
+    instanceId: string,
+    targetDay: DayName,
+    targetZone: TaskZone,
+  ) => {
     if (instanceId.startsWith("rec:")) {
-      // Recurring: skip on source day, create ad-hoc copy on target.
       const k = instanceId.slice(4);
-      const [libId] = k.split(":");
+      const [libId, sourceDay] = k.split(":") as [string, DayName];
       const lib = library.find((l) => l.id === libId);
       if (!lib) return;
+      // Same day: just update zone override
+      if (sourceDay === targetDay) {
+        setWeek({
+          ...week,
+          recurringZone: { ...(week.recurringZone ?? {}), [k]: targetZone },
+        });
+        return;
+      }
       const wasDone = !!week.recurringDone[k];
       setWeek({
         ...week,
@@ -219,9 +279,11 @@ function Index() {
             libraryId: lib.id,
             text: lib.text,
             objectiveId: lib.objectiveId,
+            kind: lib.kind ?? "work",
             day: targetDay,
             done: wasDone,
             order: nextOrder(targetDay),
+            zone: targetZone,
           },
         ],
       });
@@ -230,7 +292,12 @@ function Index() {
         ...week,
         adHoc: week.adHoc.map((t) =>
           t.id === instanceId
-            ? { ...t, day: targetDay, order: nextOrder(targetDay) }
+            ? {
+                ...t,
+                day: targetDay,
+                order: nextOrder(targetDay),
+                zone: targetZone,
+              }
             : t,
         ),
       });
@@ -269,9 +336,11 @@ function Index() {
     });
   };
 
-  /** Backlog → Big Rock (creates an objective with sub-bullets). */
+  /** Backlog → Big Rock (creates a work objective with sub-bullets). */
   const promoteBacklogToBigRock = (item: BacklogItem) => {
-    const used = new Set(objectives.map((o) => o.colorIndex));
+    const used = new Set(
+      objectives.filter((o) => (o.kind ?? "work") === "work").map((o) => o.colorIndex),
+    );
     let colorIndex = 0;
     for (let i = 0; i < 8; i++) {
       if (!used.has(i)) {
@@ -285,6 +354,7 @@ function Index() {
         id: uid(),
         text: item.text,
         colorIndex,
+        kind: "work",
         subBullets: item.subBullets.map((sb) => ({
           id: uid(),
           text: sb.text,
@@ -301,7 +371,8 @@ function Index() {
     subText: string,
     day: DayName,
   ) => {
-    addAdHoc(day, subText, objectiveId);
+    const obj = objectives.find((o) => o.id === objectiveId);
+    addAdHoc(day, subText, objectiveId, obj?.kind ?? "work");
   };
 
   /* ------------- Cross-day drag context ------------- */
@@ -316,45 +387,78 @@ function Index() {
     const overId = String(over.id);
     if (activeId === overId) return;
 
-    // Find which day the active instance currently lives on.
     const activeDay = findInstanceDay(activeId);
     if (!activeDay) return;
+    const activeZone = findInstanceZone(activeId);
 
-    // Drop onto a day-shell droppable → move to that day (end of list).
+    // Drop onto a zone droppable → place at end of that zone.
+    if (overId.startsWith("zone:")) {
+      const [, day, zoneStr] = overId.split(":");
+      const targetDay = day as DayName;
+      const targetZone = Number(zoneStr) as TaskZone;
+      if (targetDay === activeDay && targetZone === activeZone) return;
+      moveInstanceTo(activeId, targetDay, targetZone);
+      return;
+    }
+
+    // Drop onto a day-shell droppable → move to that day (zone 0).
     if (overId.startsWith("day:")) {
       const targetDay = overId.slice(4) as DayName;
       if (targetDay === activeDay) return;
-      moveInstanceToDay(activeId, targetDay);
+      moveInstanceTo(activeId, targetDay, 0);
       return;
     }
 
     // Otherwise we're hovering another task instance.
     const overDay = findInstanceDay(overId);
     if (!overDay) return;
+    const overZone = findInstanceZone(overId) ?? 0;
 
-    if (overDay === activeDay) {
-      // Within-day reorder
-      const ids = instancesFor(activeDay).map((t) => t.id);
+    if (overDay === activeDay && overZone === activeZone) {
+      // Within-zone reorder
+      const ids = instancesFor(activeDay)
+        .filter((t) => (t.zone ?? 0) === overZone)
+        .map((t) => t.id);
       const oldIndex = ids.indexOf(activeId);
       const newIndex = ids.indexOf(overId);
       if (oldIndex < 0 || newIndex < 0) return;
       const next = [...ids];
       next.splice(oldIndex, 1);
       next.splice(newIndex, 0, activeId);
-      applyOrderForDay(activeDay, next);
+      // Reapply ordering across the whole day, preserving order of other zones
+      const fullOrder: string[] = [];
+      for (const z of [0, 1, 2, 3] as TaskZone[]) {
+        if (z === overZone) {
+          fullOrder.push(...next);
+        } else {
+          fullOrder.push(
+            ...instancesFor(activeDay)
+              .filter((t) => (t.zone ?? 0) === z)
+              .map((t) => t.id),
+          );
+        }
+      }
+      applyOrderForDay(activeDay, fullOrder);
     } else {
-      // Cross-day drop onto a specific task → move into that day
-      moveInstanceToDay(activeId, overDay);
+      moveInstanceTo(activeId, overDay, overZone);
     }
   };
 
   const findInstanceDay = (id: string): DayName | undefined => {
     if (id.startsWith("rec:")) {
-      const k = id.slice(4); // libraryId:day
+      const k = id.slice(4);
       const parts = k.split(":");
       return parts[1] as DayName;
     }
     return week.adHoc.find((t) => t.id === id)?.day;
+  };
+
+  const findInstanceZone = (id: string): TaskZone | undefined => {
+    if (id.startsWith("rec:")) {
+      const k = id.slice(4);
+      return ((week.recurringZone?.[k] ?? 0) as TaskZone);
+    }
+    return (week.adHoc.find((t) => t.id === id)?.zone ?? 0) as TaskZone;
   };
 
 
@@ -443,59 +547,73 @@ function Index() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-6 py-10 md:px-10">
+      <main className="mx-auto max-w-7xl space-y-10 px-6 py-10 md:px-10">
         <DndContext sensors={dndSensors} onDragEnd={handleCrossDayDrag}>
-          <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
-            <section>
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                {DAYS.map((dayName, i) => {
-                  const date = addDays(cursor, i);
-                  return (
-                    <DayDroppable key={dayName} dayName={dayName}>
-                      <DayCard
-                        dayName={dayName}
-                        date={date}
-                        isToday={isSameDay(date, today)}
-                        instances={instancesFor(dayName)}
-                        objectives={objectives}
-                        library={library}
-                        rituals={rituals}
-                        energyDone={energyDone}
-                        onToggle={toggleInstance}
-                        onRemove={removeInstance}
-                        onAddAdHoc={(text, objectiveId) =>
-                          addAdHoc(dayName, text, objectiveId)
-                        }
-                        onAddFromLibrary={(lib) =>
-                          addFromLibrary(dayName, lib)
-                        }
-                        onCopyUnfinishedToNext={() =>
-                          copyUnfinishedToNext(dayName)
-                        }
-                        onToggleRitual={(rid) => toggleRitual(dayName, rid)}
-                      />
-                    </DayDroppable>
-                  );
-                })}
-              </div>
-            </section>
+          {/* Top: North Star (Big Rocks + Personal Goals) + Upcoming + Radar */}
+          <section className="grid gap-6 lg:grid-cols-2">
+            <ObjectivesPanel
+              objectives={objectives}
+              setObjectives={setObjectives}
+              onSubToTask={subToTask}
+              kind="work"
+            />
+            <ObjectivesPanel
+              objectives={objectives}
+              setObjectives={setObjectives}
+              onSubToTask={subToTask}
+              kind="personal"
+            />
+          </section>
 
-            <aside className="space-y-6 lg:sticky lg:top-6 lg:self-start">
-              <ObjectivesPanel
-                objectives={objectives}
-                setObjectives={setObjectives}
-                onSubToTask={subToTask}
-              />
-              <BacklogPanel
-                backlog={backlog}
-                setBacklog={setBacklog}
-                onPromoteToBigRock={promoteBacklogToBigRock}
-                onPromoteToTask={(text, day) => addAdHoc(day, text)}
-                onPromoteSubToTask={(text, day) => addAdHoc(day, text)}
-              />
-              <RadarPanel radar={radar} setRadar={setRadar} />
-            </aside>
-          </div>
+          <section className="grid gap-6 lg:grid-cols-2">
+            <BacklogPanel
+              backlog={backlog}
+              setBacklog={setBacklog}
+              onPromoteToBigRock={promoteBacklogToBigRock}
+              onPromoteToTask={(text, day) => addAdHoc(day, text)}
+              onPromoteSubToTask={(text, day) => addAdHoc(day, text)}
+            />
+            <RadarPanel radar={radar} setRadar={setRadar} />
+          </section>
+
+          {/* Day cards full-width below */}
+          <section>
+            <h2 className="font-display mb-4 text-2xl font-medium text-ink">
+              This week
+            </h2>
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {DAYS.map((dayName, i) => {
+                const date = addDays(cursor, i);
+                return (
+                  <DayDroppable key={dayName} dayName={dayName}>
+                    <DayCard
+                      dayName={dayName}
+                      date={date}
+                      isToday={isSameDay(date, today)}
+                      instances={instancesFor(dayName)}
+                      objectives={objectives}
+                      library={library}
+                      rituals={rituals}
+                      energyDone={energyDone}
+                      onToggle={toggleInstance}
+                      onRemove={removeInstance}
+                      onUpdateText={updateInstanceText}
+                      onAddAdHoc={(text, objectiveId, kind, zone) =>
+                        addAdHoc(dayName, text, objectiveId, kind, zone)
+                      }
+                      onAddFromLibrary={(lib, zone) =>
+                        addFromLibrary(dayName, lib, zone)
+                      }
+                      onCopyUnfinishedToNext={() =>
+                        copyUnfinishedToNext(dayName)
+                      }
+                      onToggleRitual={(rid) => toggleRitual(dayName, rid)}
+                    />
+                  </DayDroppable>
+                );
+              })}
+            </div>
+          </section>
         </DndContext>
 
         <footer className="mt-16 border-t border-rule pt-6 text-center text-xs uppercase tracking-[0.2em] text-muted-foreground">

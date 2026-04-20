@@ -22,6 +22,8 @@ export type SubBullet = {
   done: boolean;
 };
 
+export type ObjectiveKind = "work" | "personal";
+
 export type Objective = {
   id: string;
   text: string;
@@ -29,6 +31,8 @@ export type Objective = {
   /** Optional override color (oklch string). When set, takes precedence. */
   colorOverride?: string;
   subBullets: SubBullet[];
+  /** "work" (Big Rocks) or "personal" (hobbies/personal goals). Defaults to "work". */
+  kind?: ObjectiveKind;
   createdAt: number;
 };
 
@@ -42,6 +46,8 @@ export type LibraryTask = {
   /** Optional link to an objective for color coding. */
   objectiveId?: string;
   recurrence: Recurrence;
+  /** "work" or "personal". Defaults to "work". */
+  kind?: ObjectiveKind;
   createdAt: number;
 };
 
@@ -50,6 +56,15 @@ export type LibraryTask = {
  * For recurring tasks, instances are auto-generated per week and
  * tracked independently (each occurrence is independent).
  */
+/**
+ * Vertical zone within a day, defined by the 3 energy ritual blocks.
+ * 0 = before the "Before" ritual block (top)
+ * 1 = between Before and Mid
+ * 2 = between Mid and After
+ * 3 = below the "After" block (bottom)
+ */
+export type TaskZone = 0 | 1 | 2 | 3;
+
 export type TaskInstance = {
   id: string;
   /** Source library task id (if generated from library) */
@@ -61,6 +76,10 @@ export type TaskInstance = {
   done: boolean;
   /** Sort order within the day (lower = earlier). */
   order?: number;
+  /** Which ritual zone this task lives in. Defaults to 0. */
+  zone?: TaskZone;
+  /** "work" or "personal". Defaults to "work". */
+  kind?: ObjectiveKind;
 };
 
 export type EnergySlot = "before" | "mid" | "after";
@@ -117,6 +136,11 @@ export type WeekState = {
    */
   recurringOrder?: Record<string, number>;
   /**
+   * Zone overrides for recurring instances within a day.
+   * Key: `${libraryId}:${day}` — value: TaskZone.
+   */
+  recurringZone?: Record<string, number>;
+  /**
    * Energy ritual completion. Key: `${ritualId}:${day}` — value: true.
    */
   energyDone?: Record<string, boolean>;
@@ -127,6 +151,7 @@ export const EMPTY_WEEK: WeekState = {
   recurringDone: {},
   recurringSkipped: {},
   recurringOrder: {},
+  recurringZone: {},
   energyDone: {},
 };
 
