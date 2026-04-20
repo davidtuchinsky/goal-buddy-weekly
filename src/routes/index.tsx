@@ -387,45 +387,78 @@ function Index() {
     const overId = String(over.id);
     if (activeId === overId) return;
 
-    // Find which day the active instance currently lives on.
     const activeDay = findInstanceDay(activeId);
     if (!activeDay) return;
+    const activeZone = findInstanceZone(activeId);
 
-    // Drop onto a day-shell droppable → move to that day (end of list).
+    // Drop onto a zone droppable → place at end of that zone.
+    if (overId.startsWith("zone:")) {
+      const [, day, zoneStr] = overId.split(":");
+      const targetDay = day as DayName;
+      const targetZone = Number(zoneStr) as TaskZone;
+      if (targetDay === activeDay && targetZone === activeZone) return;
+      moveInstanceTo(activeId, targetDay, targetZone);
+      return;
+    }
+
+    // Drop onto a day-shell droppable → move to that day (zone 0).
     if (overId.startsWith("day:")) {
       const targetDay = overId.slice(4) as DayName;
       if (targetDay === activeDay) return;
-      moveInstanceToDay(activeId, targetDay);
+      moveInstanceTo(activeId, targetDay, 0);
       return;
     }
 
     // Otherwise we're hovering another task instance.
     const overDay = findInstanceDay(overId);
     if (!overDay) return;
+    const overZone = findInstanceZone(overId) ?? 0;
 
-    if (overDay === activeDay) {
-      // Within-day reorder
-      const ids = instancesFor(activeDay).map((t) => t.id);
+    if (overDay === activeDay && overZone === activeZone) {
+      // Within-zone reorder
+      const ids = instancesFor(activeDay)
+        .filter((t) => (t.zone ?? 0) === overZone)
+        .map((t) => t.id);
       const oldIndex = ids.indexOf(activeId);
       const newIndex = ids.indexOf(overId);
       if (oldIndex < 0 || newIndex < 0) return;
       const next = [...ids];
       next.splice(oldIndex, 1);
       next.splice(newIndex, 0, activeId);
-      applyOrderForDay(activeDay, next);
+      // Reapply ordering across the whole day, preserving order of other zones
+      const fullOrder: string[] = [];
+      for (const z of [0, 1, 2, 3] as TaskZone[]) {
+        if (z === overZone) {
+          fullOrder.push(...next);
+        } else {
+          fullOrder.push(
+            ...instancesFor(activeDay)
+              .filter((t) => (t.zone ?? 0) === z)
+              .map((t) => t.id),
+          );
+        }
+      }
+      applyOrderForDay(activeDay, fullOrder);
     } else {
-      // Cross-day drop onto a specific task → move into that day
-      moveInstanceToDay(activeId, overDay);
+      moveInstanceTo(activeId, overDay, overZone);
     }
   };
 
   const findInstanceDay = (id: string): DayName | undefined => {
     if (id.startsWith("rec:")) {
-      const k = id.slice(4); // libraryId:day
+      const k = id.slice(4);
       const parts = k.split(":");
       return parts[1] as DayName;
     }
     return week.adHoc.find((t) => t.id === id)?.day;
+  };
+
+  const findInstanceZone = (id: string): TaskZone | undefined => {
+    if (id.startsWith("rec:")) {
+      const k = id.slice(4);
+      return ((week.recurringZone?.[k] ?? 0) as TaskZone);
+    }
+    return (week.adHoc.find((t) => t.id === id)?.zone ?? 0) as TaskZone;
   };
 
 
