@@ -129,8 +129,10 @@ export function LibraryDrawer({
             className="w-full rounded-md border border-rule bg-paper px-3 py-2 text-sm text-ink placeholder:text-muted-foreground/70 focus:border-ink focus:outline-none"
           />
 
+          <KindToggle value={kind} onChange={setKind} />
+
           <ObjectivePicker
-            objectives={objectives}
+            objectives={objectives.filter((o) => (o.kind ?? "work") === kind)}
             value={objectiveId}
             onChange={setObjectiveId}
           />
