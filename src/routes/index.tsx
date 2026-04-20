@@ -547,59 +547,73 @@ function Index() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-6 py-10 md:px-10">
+      <main className="mx-auto max-w-7xl space-y-10 px-6 py-10 md:px-10">
         <DndContext sensors={dndSensors} onDragEnd={handleCrossDayDrag}>
-          <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
-            <section>
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                {DAYS.map((dayName, i) => {
-                  const date = addDays(cursor, i);
-                  return (
-                    <DayDroppable key={dayName} dayName={dayName}>
-                      <DayCard
-                        dayName={dayName}
-                        date={date}
-                        isToday={isSameDay(date, today)}
-                        instances={instancesFor(dayName)}
-                        objectives={objectives}
-                        library={library}
-                        rituals={rituals}
-                        energyDone={energyDone}
-                        onToggle={toggleInstance}
-                        onRemove={removeInstance}
-                        onAddAdHoc={(text, objectiveId) =>
-                          addAdHoc(dayName, text, objectiveId)
-                        }
-                        onAddFromLibrary={(lib) =>
-                          addFromLibrary(dayName, lib)
-                        }
-                        onCopyUnfinishedToNext={() =>
-                          copyUnfinishedToNext(dayName)
-                        }
-                        onToggleRitual={(rid) => toggleRitual(dayName, rid)}
-                      />
-                    </DayDroppable>
-                  );
-                })}
-              </div>
-            </section>
+          {/* Top: North Star (Big Rocks + Personal Goals) + Upcoming + Radar */}
+          <section className="grid gap-6 lg:grid-cols-2">
+            <ObjectivesPanel
+              objectives={objectives}
+              setObjectives={setObjectives}
+              onSubToTask={subToTask}
+              kind="work"
+            />
+            <ObjectivesPanel
+              objectives={objectives}
+              setObjectives={setObjectives}
+              onSubToTask={subToTask}
+              kind="personal"
+            />
+          </section>
 
-            <aside className="space-y-6 lg:sticky lg:top-6 lg:self-start">
-              <ObjectivesPanel
-                objectives={objectives}
-                setObjectives={setObjectives}
-                onSubToTask={subToTask}
-              />
-              <BacklogPanel
-                backlog={backlog}
-                setBacklog={setBacklog}
-                onPromoteToBigRock={promoteBacklogToBigRock}
-                onPromoteToTask={(text, day) => addAdHoc(day, text)}
-                onPromoteSubToTask={(text, day) => addAdHoc(day, text)}
-              />
-              <RadarPanel radar={radar} setRadar={setRadar} />
-            </aside>
-          </div>
+          <section className="grid gap-6 lg:grid-cols-2">
+            <BacklogPanel
+              backlog={backlog}
+              setBacklog={setBacklog}
+              onPromoteToBigRock={promoteBacklogToBigRock}
+              onPromoteToTask={(text, day) => addAdHoc(day, text)}
+              onPromoteSubToTask={(text, day) => addAdHoc(day, text)}
+            />
+            <RadarPanel radar={radar} setRadar={setRadar} />
+          </section>
+
+          {/* Day cards full-width below */}
+          <section>
+            <h2 className="font-display mb-4 text-2xl font-medium text-ink">
+              This week
+            </h2>
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {DAYS.map((dayName, i) => {
+                const date = addDays(cursor, i);
+                return (
+                  <DayDroppable key={dayName} dayName={dayName}>
+                    <DayCard
+                      dayName={dayName}
+                      date={date}
+                      isToday={isSameDay(date, today)}
+                      instances={instancesFor(dayName)}
+                      objectives={objectives}
+                      library={library}
+                      rituals={rituals}
+                      energyDone={energyDone}
+                      onToggle={toggleInstance}
+                      onRemove={removeInstance}
+                      onUpdateText={updateInstanceText}
+                      onAddAdHoc={(text, objectiveId, kind, zone) =>
+                        addAdHoc(dayName, text, objectiveId, kind, zone)
+                      }
+                      onAddFromLibrary={(lib, zone) =>
+                        addFromLibrary(dayName, lib, zone)
+                      }
+                      onCopyUnfinishedToNext={() =>
+                        copyUnfinishedToNext(dayName)
+                      }
+                      onToggleRitual={(rid) => toggleRitual(dayName, rid)}
+                    />
+                  </DayDroppable>
+                );
+              })}
+            </div>
+          </section>
         </DndContext>
 
         <footer className="mt-16 border-t border-rule pt-6 text-center text-xs uppercase tracking-[0.2em] text-muted-foreground">
