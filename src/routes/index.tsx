@@ -249,14 +249,25 @@ function Index() {
     setWeek(next);
   };
 
-  /** Move an instance from one day to another (drag across). */
-  const moveInstanceToDay = (instanceId: string, targetDay: DayName) => {
+  /** Move an instance to a (day, zone). */
+  const moveInstanceTo = (
+    instanceId: string,
+    targetDay: DayName,
+    targetZone: TaskZone,
+  ) => {
     if (instanceId.startsWith("rec:")) {
-      // Recurring: skip on source day, create ad-hoc copy on target.
       const k = instanceId.slice(4);
-      const [libId] = k.split(":");
+      const [libId, sourceDay] = k.split(":") as [string, DayName];
       const lib = library.find((l) => l.id === libId);
       if (!lib) return;
+      // Same day: just update zone override
+      if (sourceDay === targetDay) {
+        setWeek({
+          ...week,
+          recurringZone: { ...(week.recurringZone ?? {}), [k]: targetZone },
+        });
+        return;
+      }
       const wasDone = !!week.recurringDone[k];
       setWeek({
         ...week,
@@ -268,9 +279,11 @@ function Index() {
             libraryId: lib.id,
             text: lib.text,
             objectiveId: lib.objectiveId,
+            kind: lib.kind ?? "work",
             day: targetDay,
             done: wasDone,
             order: nextOrder(targetDay),
+            zone: targetZone,
           },
         ],
       });
@@ -279,7 +292,12 @@ function Index() {
         ...week,
         adHoc: week.adHoc.map((t) =>
           t.id === instanceId
-            ? { ...t, day: targetDay, order: nextOrder(targetDay) }
+            ? {
+                ...t,
+                day: targetDay,
+                order: nextOrder(targetDay),
+                zone: targetZone,
+              }
             : t,
         ),
       });
@@ -318,9 +336,11 @@ function Index() {
     });
   };
 
-  /** Backlog → Big Rock (creates an objective with sub-bullets). */
+  /** Backlog → Big Rock (creates a work objective with sub-bullets). */
   const promoteBacklogToBigRock = (item: BacklogItem) => {
-    const used = new Set(objectives.map((o) => o.colorIndex));
+    const used = new Set(
+      objectives.filter((o) => (o.kind ?? "work") === "work").map((o) => o.colorIndex),
+    );
     let colorIndex = 0;
     for (let i = 0; i < 8; i++) {
       if (!used.has(i)) {
@@ -334,6 +354,7 @@ function Index() {
         id: uid(),
         text: item.text,
         colorIndex,
+        kind: "work",
         subBullets: item.subBullets.map((sb) => ({
           id: uid(),
           text: sb.text,
@@ -350,7 +371,8 @@ function Index() {
     subText: string,
     day: DayName,
   ) => {
-    addAdHoc(day, subText, objectiveId);
+    const obj = objectives.find((o) => o.id === objectiveId);
+    addAdHoc(day, subText, objectiveId, obj?.kind ?? "work");
   };
 
   /* ------------- Cross-day drag context ------------- */
