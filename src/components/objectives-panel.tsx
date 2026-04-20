@@ -4,6 +4,7 @@ import {
   Check,
   ChevronDown,
   ChevronRight,
+  Heart,
   Plus,
   Target,
   Trash2,
@@ -14,6 +15,7 @@ import {
   objectiveColor,
   uid,
   type Objective,
+  type ObjectiveKind,
   type SubBullet,
 } from "@/lib/types";
 import { DAYS, type DayName } from "@/lib/week";
@@ -30,19 +32,28 @@ type Props = {
     subText: string,
     day: DayName,
   ) => void;
+  /** Which kind of objectives this panel manages. Defaults to "work". */
+  kind?: ObjectiveKind;
 };
 
 export function ObjectivesPanel({
   objectives,
   setObjectives,
   onSubToTask,
+  kind = "work",
 }: Props) {
   const [text, setText] = useState("");
+
+  const filtered = objectives.filter(
+    (o) => (o.kind ?? "work") === kind,
+  );
+
+  const isPersonal = kind === "personal";
 
   const add = () => {
     const t = text.trim();
     if (!t) return;
-    const used = new Set(objectives.map((o) => o.colorIndex));
+    const used = new Set(filtered.map((o) => o.colorIndex));
     let colorIndex = 0;
     for (let i = 0; i < OBJECTIVE_PALETTE.length; i++) {
       if (!used.has(i)) {
@@ -57,6 +68,7 @@ export function ObjectivesPanel({
         text: t,
         colorIndex,
         subBullets: [],
+        kind,
         createdAt: Date.now(),
       },
     ]);
@@ -66,30 +78,45 @@ export function ObjectivesPanel({
   return (
     <div className="rounded-lg border border-rule bg-card p-6">
       <div className="mb-5 flex items-center gap-3">
-        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-primary">
-          <Target className="h-4 w-4" />
+        <div
+          className={cn(
+            "flex h-9 w-9 items-center justify-center rounded-full",
+            isPersonal
+              ? "bg-chart-2/15 text-chart-2"
+              : "bg-primary/10 text-primary",
+          )}
+        >
+          {isPersonal ? (
+            <Heart className="h-4 w-4" />
+          ) : (
+            <Target className="h-4 w-4" />
+          )}
         </div>
         <div>
           <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-            North star
+            {isPersonal ? "Outside work" : "North star"}
           </p>
           <h2 className="font-display text-xl font-medium text-ink">
-            Big rocks
+            {isPersonal ? "Personal goals" : "Big rocks"}
           </h2>
         </div>
       </div>
 
       <p className="mb-4 text-xs italic text-muted-foreground">
-        Aim for 2–4 big rocks this week.
+        {isPersonal
+          ? "Hobbies, health, relationships — what matters off-hours."
+          : "Aim for 2–4 big rocks this week."}
       </p>
 
       <ul className="space-y-3">
-        {objectives.length === 0 && (
+        {filtered.length === 0 && (
           <li className="py-2 text-sm italic text-muted-foreground/70">
-            What do you want this week to add up to?
+            {isPersonal
+              ? "What do you want to nurture this week?"
+              : "What do you want this week to add up to?"}
           </li>
         )}
-        {objectives.map((o) => (
+        {filtered.map((o) => (
           <ObjectiveRow
             key={o.id}
             objective={o}
@@ -117,7 +144,9 @@ export function ObjectivesPanel({
         <input
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="Add a big rock…"
+          placeholder={
+            isPersonal ? "Add a personal goal…" : "Add a big rock…"
+          }
           className="flex-1 bg-transparent text-sm text-ink placeholder:text-muted-foreground/70 focus:outline-none"
         />
       </form>
