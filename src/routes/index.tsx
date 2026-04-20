@@ -140,7 +140,13 @@ function Index() {
     }
   };
 
-  const addAdHoc = (day: DayName, text: string, objectiveId?: string) => {
+  const addAdHoc = (
+    day: DayName,
+    text: string,
+    objectiveId?: string,
+    kind: ObjectiveKind = "work",
+    zone: TaskZone = 0,
+  ) => {
     setWeek({
       ...week,
       adHoc: [
@@ -149,15 +155,21 @@ function Index() {
           id: uid(),
           text: text.trim(),
           objectiveId,
+          kind,
           day,
           done: false,
           order: nextOrder(day),
+          zone,
         },
       ],
     });
   };
 
-  const addFromLibrary = (day: DayName, lib: LibraryTask) => {
+  const addFromLibrary = (
+    day: DayName,
+    lib: LibraryTask,
+    zone: TaskZone = 0,
+  ) => {
     setWeek({
       ...week,
       adHoc: [
@@ -167,12 +179,45 @@ function Index() {
           libraryId: lib.id,
           text: lib.text,
           objectiveId: lib.objectiveId,
+          kind: lib.kind ?? "work",
           day,
           done: false,
           order: nextOrder(day),
+          zone,
         },
       ],
     });
+  };
+
+  const updateInstanceText = (t: TaskInstance, text: string) => {
+    if (t.libraryId && t.id.startsWith("rec:")) {
+      // Editing a recurring instance: convert it into an ad-hoc copy and skip the recurring source for this week.
+      const k = recurringKey(t.libraryId, t.day);
+      setWeek({
+        ...week,
+        recurringSkipped: { ...week.recurringSkipped, [k]: true },
+        adHoc: [
+          ...week.adHoc,
+          {
+            id: uid(),
+            text,
+            objectiveId: t.objectiveId,
+            kind: t.kind ?? "work",
+            day: t.day,
+            done: t.done,
+            order: t.order ?? nextOrder(t.day),
+            zone: t.zone ?? 0,
+          },
+        ],
+      });
+    } else {
+      setWeek({
+        ...week,
+        adHoc: week.adHoc.map((x) =>
+          x.id === t.id ? { ...x, text } : x,
+        ),
+      });
+    }
   };
 
   const nextOrder = (day: DayName): number => {
