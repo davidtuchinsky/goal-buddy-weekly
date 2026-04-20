@@ -1,25 +1,45 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Library } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Library,
+  Sparkles,
+} from "lucide-react";
+import {
+  DndContext,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  useDroppable,
+  type DragEndEvent,
+} from "@dnd-kit/core";
 import {
   DAYS,
   addDays,
   formatWeekRange,
   isSameDay,
+  nextDay,
   startOfWeek,
   weekKey,
   type DayName,
 } from "@/lib/week";
 import { useGlobalState, useWeekState } from "@/lib/hooks";
 import {
+  energyKey,
   recurringKey,
   uid,
+  type BacklogItem,
   type LibraryTask,
   type TaskInstance,
+  type WeekState,
 } from "@/lib/types";
 import { ObjectivesPanel } from "@/components/objectives-panel";
 import { LibraryDrawer } from "@/components/library-drawer";
 import { DayCard } from "@/components/day-card";
+import { EnergyRitualsDrawer } from "@/components/energy-rituals-drawer";
+import { BacklogPanel } from "@/components/backlog-panel";
+import { RadarPanel } from "@/components/radar-panel";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -28,8 +48,20 @@ export const Route = createFileRoute("/")({
 function Index() {
   const [cursor, setCursor] = useState<Date>(() => startOfWeek(new Date()));
   const [libraryOpen, setLibraryOpen] = useState(false);
+  const [ritualsOpen, setRitualsOpen] = useState(false);
 
-  const { objectives, setObjectives, library, setLibrary } = useGlobalState();
+  const {
+    objectives,
+    setObjectives,
+    library,
+    setLibrary,
+    rituals,
+    setRituals,
+    backlog,
+    setBacklog,
+    radar,
+    setRadar,
+  } = useGlobalState();
   const { week, setWeek } = useWeekState(cursor);
 
   const today = useMemo(() => new Date(), []);
@@ -38,7 +70,9 @@ function Index() {
     [today, cursor],
   );
 
-  /** Build instances for a given day (recurring + ad-hoc). */
+  const energyDone = week.energyDone ?? {};
+
+  /** Build instances for a given day (recurring + ad-hoc), sorted by order. */
   const instancesFor = (day: DayName): TaskInstance[] => {
     const recurring: TaskInstance[] = [];
     for (const lib of library) {
@@ -53,10 +87,15 @@ function Index() {
         objectiveId: lib.objectiveId,
         day,
         done: !!week.recurringDone[k],
+        order: week.recurringOrder?.[k],
       });
     }
     const adHoc = week.adHoc.filter((t) => t.day === day);
-    return [...recurring, ...adHoc];
+    return [...recurring, ...adHoc].sort((a, b) => {
+      const ao = a.order ?? Number.MAX_SAFE_INTEGER;
+      const bo = b.order ?? Number.MAX_SAFE_INTEGER;
+      return ao - bo;
+    });
   };
 
   const allInstances = useMemo(
@@ -69,7 +108,7 @@ function Index() {
   const progress = totalTasks ? Math.round((doneTasks / totalTasks) * 100) : 0;
 
   const toggleInstance = (t: TaskInstance) => {
-    if (t.libraryId) {
+    if (t.libraryId && t.id.startsWith("rec:")) {
       const k = recurringKey(t.libraryId, t.day);
       setWeek({
         ...week,
@@ -86,7 +125,7 @@ function Index() {
   };
 
   const removeInstance = (t: TaskInstance) => {
-    if (t.libraryId) {
+    if (t.libraryId && t.id.startsWith("rec:")) {
       const k = recurringKey(t.libraryId, t.day);
       setWeek({
         ...week,
@@ -108,6 +147,7 @@ function Index() {
           objectiveId,
           day,
           done: false,
+          order: nextOrder(day),
         },
       ],
     });
@@ -125,10 +165,198 @@ function Index() {
           objectiveId: lib.objectiveId,
           day,
           done: false,
+          order: nextOrder(day),
         },
       ],
     });
   };
+
+  const nextOrder = (day: DayName): number => {
+    const list = instancesFor(day);
+    const maxOrder = list.reduce((m, t) => {
+      const o = t.order ?? -1;
+      return o > m ? o : m;
+    }, -1);
+    return maxOrder + 1;
+  };
+
+  /** Apply an explicit ordering (list of instance ids) to a day. */
+  const applyOrderForDay = (day: DayName, orderedIds: string[]) => {
+    const next: WeekState = {
+      ...week,
+      adHoc: [...week.adHoc],
+      recurringOrder: { ...(week.recurringOrder ?? {}) },
+    };
+    orderedIds.forEach((id, idx) => {
+      if (id.startsWith("rec:")) {
+        const k = id.slice(4); // libraryId:day
+        next.recurringOrder![k] = idx;
+      } else {
+        next.adHoc = next.adHoc.map((t) =>
+          t.id === id ? { ...t, order: idx, day } : t,
+        );
+      }
+    });
+    setWeek(next);
+  };
+
+  /** Move an instance from one day to another (drag across). */
+  const moveInstanceToDay = (instanceId: string, targetDay: DayName) => {
+    if (instanceId.startsWith("rec:")) {
+      // Recurring: skip on source day, create ad-hoc copy on target.
+      const k = instanceId.slice(4);
+      const [libId] = k.split(":");
+      const lib = library.find((l) => l.id === libId);
+      if (!lib) return;
+      const wasDone = !!week.recurringDone[k];
+      setWeek({
+        ...week,
+        recurringSkipped: { ...week.recurringSkipped, [k]: true },
+        adHoc: [
+          ...week.adHoc,
+          {
+            id: uid(),
+            libraryId: lib.id,
+            text: lib.text,
+            objectiveId: lib.objectiveId,
+            day: targetDay,
+            done: wasDone,
+            order: nextOrder(targetDay),
+          },
+        ],
+      });
+    } else {
+      setWeek({
+        ...week,
+        adHoc: week.adHoc.map((t) =>
+          t.id === instanceId
+            ? { ...t, day: targetDay, order: nextOrder(targetDay) }
+            : t,
+        ),
+      });
+    }
+  };
+
+  /** Copy unfinished ad-hoc (non-recurring) tasks for `day` to next day. */
+  const copyUnfinishedToNext = (day: DayName) => {
+    const target = nextDay(day);
+    const baseOrder = nextOrder(target);
+    const toCopy = week.adHoc.filter(
+      (t) => t.day === day && !t.done && !t.libraryId,
+    );
+    if (toCopy.length === 0) return;
+    setWeek({
+      ...week,
+      adHoc: [
+        ...week.adHoc,
+        ...toCopy.map((t, i) => ({
+          ...t,
+          id: uid(),
+          day: target,
+          done: false,
+          order: baseOrder + i,
+        })),
+      ],
+    });
+  };
+
+  const toggleRitual = (day: DayName, ritualId: string) => {
+    const k = energyKey(ritualId, day);
+    const current = !!energyDone[k];
+    setWeek({
+      ...week,
+      energyDone: { ...energyDone, [k]: !current },
+    });
+  };
+
+  /** Backlog → Big Rock (creates an objective with sub-bullets). */
+  const promoteBacklogToBigRock = (item: BacklogItem) => {
+    const used = new Set(objectives.map((o) => o.colorIndex));
+    let colorIndex = 0;
+    for (let i = 0; i < 8; i++) {
+      if (!used.has(i)) {
+        colorIndex = i;
+        break;
+      }
+    }
+    setObjectives([
+      ...objectives,
+      {
+        id: uid(),
+        text: item.text,
+        colorIndex,
+        subBullets: item.subBullets.map((sb) => ({
+          id: uid(),
+          text: sb.text,
+          done: false,
+        })),
+        createdAt: Date.now(),
+      },
+    ]);
+  };
+
+  /** Sub-bullet of a Big Rock → ad-hoc task on a chosen day, color-tied. */
+  const subToTask = (
+    objectiveId: string,
+    subText: string,
+    day: DayName,
+  ) => {
+    addAdHoc(day, subText, objectiveId);
+  };
+
+  /* ------------- Cross-day drag context ------------- */
+  const dndSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+  );
+
+  const handleCrossDayDrag = (e: DragEndEvent) => {
+    const { active, over } = e;
+    if (!over) return;
+    const activeId = String(active.id);
+    const overId = String(over.id);
+    if (activeId === overId) return;
+
+    // Find which day the active instance currently lives on.
+    const activeDay = findInstanceDay(activeId);
+    if (!activeDay) return;
+
+    // Drop onto a day-shell droppable → move to that day (end of list).
+    if (overId.startsWith("day:")) {
+      const targetDay = overId.slice(4) as DayName;
+      if (targetDay === activeDay) return;
+      moveInstanceToDay(activeId, targetDay);
+      return;
+    }
+
+    // Otherwise we're hovering another task instance.
+    const overDay = findInstanceDay(overId);
+    if (!overDay) return;
+
+    if (overDay === activeDay) {
+      // Within-day reorder
+      const ids = instancesFor(activeDay).map((t) => t.id);
+      const oldIndex = ids.indexOf(activeId);
+      const newIndex = ids.indexOf(overId);
+      if (oldIndex < 0 || newIndex < 0) return;
+      const next = [...ids];
+      next.splice(oldIndex, 1);
+      next.splice(newIndex, 0, activeId);
+      applyOrderForDay(activeDay, next);
+    } else {
+      // Cross-day drop onto a specific task → move into that day
+      moveInstanceToDay(activeId, overDay);
+    }
+  };
+
+  const findInstanceDay = (id: string): DayName | undefined => {
+    if (id.startsWith("rec:")) {
+      const k = id.slice(4); // libraryId:day
+      const parts = k.split(":");
+      return parts[1] as DayName;
+    }
+    return week.adHoc.find((t) => t.id === id)?.day;
+  };
+
 
   return (
     <div className="min-h-screen">
@@ -146,7 +374,18 @@ function Index() {
                 </span>
               </h1>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={() => setRitualsOpen(true)}
+                className="inline-flex h-10 items-center gap-2 rounded-full border border-rule px-4 text-sm font-medium text-ink transition-colors hover:bg-accent"
+              >
+                <Sparkles className="h-4 w-4" /> Rituals
+                {rituals.length > 0 && (
+                  <span className="font-display text-xs text-muted-foreground">
+                    {rituals.length}
+                  </span>
+                )}
+              </button>
               <button
                 onClick={() => setLibraryOpen(true)}
                 className="inline-flex h-10 items-center gap-2 rounded-full border border-rule px-4 text-sm font-medium text-ink transition-colors hover:bg-accent"
@@ -205,39 +444,59 @@ function Index() {
       </header>
 
       <main className="mx-auto max-w-7xl px-6 py-10 md:px-10">
-        <div className="grid gap-8 lg:grid-cols-[1fr_340px]">
-          <section>
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {DAYS.map((dayName, i) => {
-                const date = addDays(cursor, i);
-                return (
-                  <DayCard
-                    key={dayName}
-                    dayName={dayName}
-                    date={date}
-                    isToday={isSameDay(date, today)}
-                    instances={instancesFor(dayName)}
-                    objectives={objectives}
-                    library={library}
-                    onToggle={toggleInstance}
-                    onRemove={removeInstance}
-                    onAddAdHoc={(text, objectiveId) =>
-                      addAdHoc(dayName, text, objectiveId)
-                    }
-                    onAddFromLibrary={(lib) => addFromLibrary(dayName, lib)}
-                  />
-                );
-              })}
-            </div>
-          </section>
+        <DndContext sensors={dndSensors} onDragEnd={handleCrossDayDrag}>
+          <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
+            <section>
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {DAYS.map((dayName, i) => {
+                  const date = addDays(cursor, i);
+                  return (
+                    <DayDroppable key={dayName} dayName={dayName}>
+                      <DayCard
+                        dayName={dayName}
+                        date={date}
+                        isToday={isSameDay(date, today)}
+                        instances={instancesFor(dayName)}
+                        objectives={objectives}
+                        library={library}
+                        rituals={rituals}
+                        energyDone={energyDone}
+                        onToggle={toggleInstance}
+                        onRemove={removeInstance}
+                        onAddAdHoc={(text, objectiveId) =>
+                          addAdHoc(dayName, text, objectiveId)
+                        }
+                        onAddFromLibrary={(lib) =>
+                          addFromLibrary(dayName, lib)
+                        }
+                        onCopyUnfinishedToNext={() =>
+                          copyUnfinishedToNext(dayName)
+                        }
+                        onToggleRitual={(rid) => toggleRitual(dayName, rid)}
+                      />
+                    </DayDroppable>
+                  );
+                })}
+              </div>
+            </section>
 
-          <aside className="lg:sticky lg:top-6 lg:self-start">
-            <ObjectivesPanel
-              objectives={objectives}
-              setObjectives={setObjectives}
-            />
-          </aside>
-        </div>
+            <aside className="space-y-6 lg:sticky lg:top-6 lg:self-start">
+              <ObjectivesPanel
+                objectives={objectives}
+                setObjectives={setObjectives}
+                onSubToTask={subToTask}
+              />
+              <BacklogPanel
+                backlog={backlog}
+                setBacklog={setBacklog}
+                onPromoteToBigRock={promoteBacklogToBigRock}
+                onPromoteToTask={(text, day) => addAdHoc(day, text)}
+                onPromoteSubToTask={(text, day) => addAdHoc(day, text)}
+              />
+              <RadarPanel radar={radar} setRadar={setRadar} />
+            </aside>
+          </div>
+        </DndContext>
 
         <footer className="mt-16 border-t border-rule pt-6 text-center text-xs uppercase tracking-[0.2em] text-muted-foreground">
           Saved locally in your browser
@@ -251,6 +510,31 @@ function Index() {
         setLibrary={setLibrary}
         objectives={objectives}
       />
+      <EnergyRitualsDrawer
+        open={ritualsOpen}
+        onClose={() => setRitualsOpen(false)}
+        rituals={rituals}
+        setRituals={setRituals}
+      />
+    </div>
+  );
+}
+
+/** Wraps a day card so it accepts dropped tasks from other days. */
+function DayDroppable({
+  dayName,
+  children,
+}: {
+  dayName: DayName;
+  children: React.ReactNode;
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id: `day:${dayName}` });
+  return (
+    <div
+      ref={setNodeRef}
+      className={isOver ? "rounded-lg ring-2 ring-primary/50" : ""}
+    >
+      {children}
     </div>
   );
 }
