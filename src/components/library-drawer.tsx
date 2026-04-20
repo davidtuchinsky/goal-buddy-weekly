@@ -46,6 +46,7 @@ export function LibraryDrawer({
   const [text, setText] = useState("");
   const [objectiveId, setObjectiveId] = useState<string | undefined>();
   const [recurringDays, setRecurringDays] = useState<DayName[]>([]);
+  const [kind, setKind] = useState<ObjectiveKind>("work");
 
   const add = () => {
     const t = text.trim();
@@ -61,11 +62,13 @@ export function LibraryDrawer({
         text: t,
         objectiveId,
         recurrence,
+        kind,
         createdAt: Date.now(),
       },
     ]);
     setText("");
     setRecurringDays([]);
+    setObjectiveId(undefined);
   };
 
   const toggleDay = (d: DayName) =>
