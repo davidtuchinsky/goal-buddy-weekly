@@ -1,19 +1,42 @@
 import { useState } from "react";
-import { Check, ChevronDown, ChevronRight, Plus, Target, Trash2, X } from "lucide-react";
+import {
+  ArrowUpRight,
+  Check,
+  ChevronDown,
+  ChevronRight,
+  Plus,
+  Target,
+  Trash2,
+  X,
+} from "lucide-react";
 import {
   OBJECTIVE_PALETTE,
   objectiveColor,
   uid,
   type Objective,
+  type SubBullet,
 } from "@/lib/types";
+import { DAYS, type DayName } from "@/lib/week";
 import { cn } from "@/lib/utils";
 
 type Props = {
   objectives: Objective[];
-  setObjectives: (next: Objective[] | ((prev: Objective[]) => Objective[])) => void;
+  setObjectives: (
+    next: Objective[] | ((prev: Objective[]) => Objective[]),
+  ) => void;
+  /** Convert a sub-bullet into an ad-hoc task on the picked day, tied to the objective. */
+  onSubToTask: (
+    objectiveId: string,
+    subText: string,
+    day: DayName,
+  ) => void;
 };
 
-export function ObjectivesPanel({ objectives, setObjectives }: Props) {
+export function ObjectivesPanel({
+  objectives,
+  setObjectives,
+  onSubToTask,
+}: Props) {
   const [text, setText] = useState("");
 
   const add = () => {
@@ -78,6 +101,7 @@ export function ObjectivesPanel({ objectives, setObjectives }: Props) {
             onRemove={() =>
               setObjectives(objectives.filter((x) => x.id !== o.id))
             }
+            onSubToTask={(subText, day) => onSubToTask(o.id, subText, day)}
           />
         ))}
       </ul>
@@ -105,14 +129,19 @@ function ObjectiveRow({
   objective,
   onChange,
   onRemove,
+  onSubToTask,
 }: {
   objective: Objective;
   onChange: (next: Objective) => void;
   onRemove: () => void;
+  onSubToTask: (subText: string, day: DayName) => void;
 }) {
   const [open, setOpen] = useState(true);
   const [showColors, setShowColors] = useState(false);
   const [subText, setSubText] = useState("");
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState(objective.text);
+  const [pickFor, setPickFor] = useState<string | null>(null);
   const color = objectiveColor(objective);
 
   const addSub = () => {
@@ -127,6 +156,12 @@ function ObjectiveRow({
     });
     setSubText("");
   };
+
+  const updateSub = (sb: SubBullet) =>
+    onChange({
+      ...objective,
+      subBullets: objective.subBullets.map((x) => (x.id === sb.id ? sb : x)),
+    });
 
   return (
     <li
@@ -151,9 +186,34 @@ function ObjectiveRow({
           style={{ backgroundColor: color, boxShadow: `0 0 0 1px ${color}` }}
           aria-label="Change color"
         />
-        <h3 className="font-display flex-1 text-base font-medium leading-snug text-ink">
-          {objective.text}
-        </h3>
+        {editingTitle ? (
+          <input
+            autoFocus
+            value={titleDraft}
+            onChange={(e) => setTitleDraft(e.target.value)}
+            onBlur={() => {
+              const t = titleDraft.trim();
+              if (t) onChange({ ...objective, text: t });
+              else setTitleDraft(objective.text);
+              setEditingTitle(false);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+              if (e.key === "Escape") {
+                setTitleDraft(objective.text);
+                setEditingTitle(false);
+              }
+            }}
+            className="font-display flex-1 border-b border-ink bg-transparent text-base font-medium leading-snug text-ink focus:outline-none"
+          />
+        ) : (
+          <button
+            onClick={() => setEditingTitle(true)}
+            className="font-display flex-1 text-left text-base font-medium leading-snug text-ink hover:underline"
+          >
+            {objective.text}
+          </button>
+        )}
         <button
           onClick={onRemove}
           className="text-muted-foreground hover:text-destructive"
@@ -193,47 +253,69 @@ function ObjectiveRow({
       {open && (
         <div className="mt-2 ml-6 space-y-1">
           {objective.subBullets.map((sb) => (
-            <div key={sb.id} className="group flex items-start gap-2">
-              <button
-                onClick={() =>
-                  onChange({
-                    ...objective,
-                    subBullets: objective.subBullets.map((x) =>
-                      x.id === sb.id ? { ...x, done: !x.done } : x,
-                    ),
-                  })
-                }
-                className={cn(
-                  "mt-1 flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-sm border transition-colors",
-                  sb.done
-                    ? "border-transparent text-paper"
-                    : "border-rule hover:border-ink",
-                )}
-                style={sb.done ? { backgroundColor: color } : undefined}
-              >
-                {sb.done && <Check className="h-2.5 w-2.5" strokeWidth={3} />}
-              </button>
-              <span
-                className={cn(
-                  "flex-1 text-sm leading-snug text-ink",
-                  sb.done && "text-muted-foreground line-through",
-                )}
-              >
-                {sb.text}
-              </span>
-              <button
-                onClick={() =>
-                  onChange({
-                    ...objective,
-                    subBullets: objective.subBullets.filter(
-                      (x) => x.id !== sb.id,
-                    ),
-                  })
-                }
-                className="mt-0.5 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
-              >
-                <Trash2 className="h-3 w-3" />
-              </button>
+            <div key={sb.id}>
+              <div className="group flex items-start gap-2">
+                <button
+                  onClick={() => updateSub({ ...sb, done: !sb.done })}
+                  className={cn(
+                    "mt-1 flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-sm border transition-colors",
+                    sb.done
+                      ? "border-transparent text-paper"
+                      : "border-rule hover:border-ink",
+                  )}
+                  style={sb.done ? { backgroundColor: color } : undefined}
+                >
+                  {sb.done && (
+                    <Check className="h-2.5 w-2.5" strokeWidth={3} />
+                  )}
+                </button>
+                <input
+                  value={sb.text}
+                  onChange={(e) => updateSub({ ...sb, text: e.target.value })}
+                  className={cn(
+                    "flex-1 bg-transparent text-sm leading-snug text-ink focus:outline-none focus:underline",
+                    sb.done && "text-muted-foreground line-through",
+                  )}
+                />
+                <button
+                  onClick={() =>
+                    setPickFor(pickFor === sb.id ? null : sb.id)
+                  }
+                  className="rounded p-0.5 text-muted-foreground opacity-0 transition-opacity hover:bg-accent hover:text-ink group-hover:opacity-100"
+                  title="Add as task this week"
+                >
+                  <ArrowUpRight className="h-3 w-3" />
+                </button>
+                <button
+                  onClick={() =>
+                    onChange({
+                      ...objective,
+                      subBullets: objective.subBullets.filter(
+                        (x) => x.id !== sb.id,
+                      ),
+                    })
+                  }
+                  className="mt-0.5 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </button>
+              </div>
+              {pickFor === sb.id && (
+                <div className="ml-6 mt-1 flex flex-wrap gap-1">
+                  {DAYS.map((d) => (
+                    <button
+                      key={d}
+                      onClick={() => {
+                        onSubToTask(sb.text, d);
+                        setPickFor(null);
+                      }}
+                      className="rounded-full border border-rule px-2 py-0.5 text-[10px] uppercase tracking-wider text-ink hover:border-ink hover:bg-accent"
+                    >
+                      {d.slice(0, 3)}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           ))}
           <form
