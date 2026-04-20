@@ -1,6 +1,8 @@
 import { useState } from "react";
 import {
+  Briefcase,
   Check,
+  Heart,
   Library,
   Pencil,
   Plus,
@@ -19,6 +21,7 @@ import {
   uid,
   type LibraryTask,
   type Objective,
+  type ObjectiveKind,
   type Recurrence,
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
