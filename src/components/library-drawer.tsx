@@ -277,8 +277,14 @@ function LibraryRow({
 
       {editing && (
         <div className="mt-3 space-y-3 border-t border-rule pt-3">
+          <KindToggle
+            value={task.kind ?? "work"}
+            onChange={(k) => onChange({ ...task, kind: k, objectiveId: undefined })}
+          />
           <ObjectivePicker
-            objectives={objectives}
+            objectives={objectives.filter(
+              (o) => (o.kind ?? "work") === (task.kind ?? "work"),
+            )}
             value={task.objectiveId}
             onChange={(id) => onChange({ ...task, objectiveId: id })}
           />
@@ -286,6 +292,50 @@ function LibraryRow({
         </div>
       )}
     </li>
+  );
+}
+
+function KindToggle({
+  value,
+  onChange,
+}: {
+  value: ObjectiveKind;
+  onChange: (v: ObjectiveKind) => void;
+}) {
+  return (
+    <div>
+      <label className="mb-1.5 flex items-center gap-1.5 text-xs uppercase tracking-wider text-muted-foreground">
+        Type
+      </label>
+      <div className="flex gap-1.5">
+        <button
+          type="button"
+          onClick={() => onChange("work")}
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors",
+            value === "work"
+              ? "border-ink bg-ink text-paper"
+              : "border-rule text-muted-foreground hover:border-ink hover:text-ink",
+          )}
+        >
+          <Briefcase className="h-3 w-3" />
+          Work
+        </button>
+        <button
+          type="button"
+          onClick={() => onChange("personal")}
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors",
+            value === "personal"
+              ? "border-chart-2 bg-chart-2/15 text-chart-2"
+              : "border-rule text-muted-foreground hover:border-ink hover:text-ink",
+          )}
+        >
+          <Heart className="h-3 w-3" />
+          Personal
+        </button>
+      </div>
+    </div>
   );
 }
 
