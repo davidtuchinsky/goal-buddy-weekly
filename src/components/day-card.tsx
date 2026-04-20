@@ -72,26 +72,12 @@ export function DayCard({
   const objectiveById = (id?: string) =>
     id ? objectives.find((o) => o.id === id) : undefined;
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
-  );
-
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!text.trim()) return;
     onAddAdHoc(text, pickObjective);
     setText("");
     setPickObjective(undefined);
-  };
-
-  const handleDragEnd = (e: DragEndEvent) => {
-    const { active, over } = e;
-    if (!over || active.id === over.id) return;
-    const ids = instances.map((t) => t.id);
-    const oldIndex = ids.indexOf(String(active.id));
-    const newIndex = ids.indexOf(String(over.id));
-    if (oldIndex < 0 || newIndex < 0) return;
-    onReorderWithinDay(arrayMove(ids, oldIndex, newIndex));
   };
 
   // Count unfinished, non-recurring (ad-hoc) tasks for the copy button
