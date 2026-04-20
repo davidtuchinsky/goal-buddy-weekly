@@ -136,6 +136,11 @@ export type WeekState = {
    */
   recurringOrder?: Record<string, number>;
   /**
+   * Zone overrides for recurring instances within a day.
+   * Key: `${libraryId}:${day}` — value: TaskZone.
+   */
+  recurringZone?: Record<string, number>;
+  /**
    * Energy ritual completion. Key: `${ritualId}:${day}` — value: true.
    */
   energyDone?: Record<string, boolean>;
@@ -146,6 +151,7 @@ export const EMPTY_WEEK: WeekState = {
   recurringDone: {},
   recurringSkipped: {},
   recurringOrder: {},
+  recurringZone: {},
   energyDone: {},
 };
 
