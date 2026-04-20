@@ -2,8 +2,11 @@ import { useMemo } from "react";
 import { useLocalStorage } from "@/lib/storage";
 import {
   EMPTY_WEEK,
+  type BacklogItem,
+  type EnergyRitual,
   type LibraryTask,
   type Objective,
+  type RadarItem,
   type TaskInstance,
   type WeekState,
   recurringKey,
@@ -11,7 +14,7 @@ import {
 import type { DayName } from "@/lib/week";
 import { weekKey } from "@/lib/week";
 
-/** Global (cross-week) state: objectives + library. */
+/** Global (cross-week) state: objectives, library, energy rituals, backlog, radar. */
 export function useGlobalState() {
   const [objectives, setObjectives] = useLocalStorage<Objective[]>(
     "weekly:objectives",
@@ -21,7 +24,27 @@ export function useGlobalState() {
     "weekly:library",
     [],
   );
-  return { objectives, setObjectives, library, setLibrary };
+  const [rituals, setRituals] = useLocalStorage<EnergyRitual[]>(
+    "weekly:rituals",
+    [],
+  );
+  const [backlog, setBacklog] = useLocalStorage<BacklogItem[]>(
+    "weekly:backlog",
+    [],
+  );
+  const [radar, setRadar] = useLocalStorage<RadarItem[]>("weekly:radar", []);
+  return {
+    objectives,
+    setObjectives,
+    library,
+    setLibrary,
+    rituals,
+    setRituals,
+    backlog,
+    setBacklog,
+    radar,
+    setRadar,
+  };
 }
 
 /** Per-week state: ad-hoc tasks + completion overrides. */
@@ -35,6 +58,7 @@ export function useWeekState(weekStart: Date) {
  * Computes the visible task instances for a given day by merging:
  *  - Ad-hoc tasks for that day
  *  - Generated recurring instances from the library
+ *  Sorted by `order`, falling back to insertion order.
  */
 export function useDayInstances(
   day: DayName,
@@ -57,8 +81,14 @@ export function useDayInstances(
         objectiveId: lib.objectiveId,
         day,
         done: !!week.recurringDone[k],
+        order: week.recurringOrder?.[k],
       });
     }
-    return [...recurring, ...adHoc];
+    const merged = [...recurring, ...adHoc];
+    return merged.sort((a, b) => {
+      const ao = a.order ?? Number.MAX_SAFE_INTEGER;
+      const bo = b.order ?? Number.MAX_SAFE_INTEGER;
+      return ao - bo;
+    });
   }, [day, library, week]);
 }
