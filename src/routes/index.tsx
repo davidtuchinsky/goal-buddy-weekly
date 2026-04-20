@@ -312,12 +312,51 @@ function Index() {
   const handleCrossDayDrag = (e: DragEndEvent) => {
     const { active, over } = e;
     if (!over) return;
+    const activeId = String(active.id);
     const overId = String(over.id);
+    if (activeId === overId) return;
+
+    // Find which day the active instance currently lives on.
+    const activeDay = findInstanceDay(activeId);
+    if (!activeDay) return;
+
+    // Drop onto a day-shell droppable → move to that day (end of list).
     if (overId.startsWith("day:")) {
       const targetDay = overId.slice(4) as DayName;
-      moveInstanceToDay(String(active.id), targetDay);
+      if (targetDay === activeDay) return;
+      moveInstanceToDay(activeId, targetDay);
+      return;
+    }
+
+    // Otherwise we're hovering another task instance.
+    const overDay = findInstanceDay(overId);
+    if (!overDay) return;
+
+    if (overDay === activeDay) {
+      // Within-day reorder
+      const ids = instancesFor(activeDay).map((t) => t.id);
+      const oldIndex = ids.indexOf(activeId);
+      const newIndex = ids.indexOf(overId);
+      if (oldIndex < 0 || newIndex < 0) return;
+      const next = [...ids];
+      next.splice(oldIndex, 1);
+      next.splice(newIndex, 0, activeId);
+      applyOrderForDay(activeDay, next);
+    } else {
+      // Cross-day drop onto a specific task → move into that day
+      moveInstanceToDay(activeId, overDay);
     }
   };
+
+  const findInstanceDay = (id: string): DayName | undefined => {
+    if (id.startsWith("rec:")) {
+      const k = id.slice(4); // libraryId:day
+      const parts = k.split(":");
+      return parts[1] as DayName;
+    }
+    return week.adHoc.find((t) => t.id === id)?.day;
+  };
+
 
   return (
     <div className="min-h-screen">
