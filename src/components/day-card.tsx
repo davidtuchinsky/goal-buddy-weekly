@@ -1,9 +1,10 @@
 import { useState } from "react";
 import {
+  Briefcase,
   Check,
   ChevronDown,
   Copy,
-  GripVertical,
+  Heart,
   Plus,
   Repeat,
   Sparkles,
@@ -14,6 +15,7 @@ import {
   useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
+import { useDroppable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import {
   ENERGY_SLOTS,
@@ -23,7 +25,9 @@ import {
   type EnergySlot,
   type LibraryTask,
   type Objective,
+  type ObjectiveKind,
   type TaskInstance,
+  type TaskZone,
 } from "@/lib/types";
 import { type DayName, formatDayLabel } from "@/lib/week";
 import { cn } from "@/lib/utils";
@@ -36,15 +40,22 @@ type Props = {
   objectives: Objective[];
   library: LibraryTask[];
   rituals: EnergyRitual[];
-  /** Map of `${ritualId}:${day}` → done */
   energyDone: Record<string, boolean>;
   onToggle: (instance: TaskInstance) => void;
   onRemove: (instance: TaskInstance) => void;
-  onAddAdHoc: (text: string, objectiveId?: string) => void;
-  onAddFromLibrary: (lib: LibraryTask) => void;
+  onUpdateText: (instance: TaskInstance, text: string) => void;
+  onAddAdHoc: (
+    text: string,
+    objectiveId: string | undefined,
+    kind: ObjectiveKind,
+    zone: TaskZone,
+  ) => void;
+  onAddFromLibrary: (lib: LibraryTask, zone: TaskZone) => void;
   onCopyUnfinishedToNext: () => void;
   onToggleRitual: (ritualId: string) => void;
 };
+
+const ZONES: TaskZone[] = [0, 1, 2, 3];
 
 export function DayCard({
   dayName,
@@ -57,28 +68,40 @@ export function DayCard({
   energyDone,
   onToggle,
   onRemove,
+  onUpdateText,
   onAddAdHoc,
   onAddFromLibrary,
   onCopyUnfinishedToNext,
   onToggleRitual,
 }: Props) {
-  const [text, setText] = useState("");
-  const [pickObjective, setPickObjective] = useState<string | undefined>();
-  const [showLibrary, setShowLibrary] = useState(false);
   const done = instances.filter((t) => t.done).length;
 
   const objectiveById = (id?: string) =>
     id ? objectives.find((o) => o.id === id) : undefined;
 
-  const submit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!text.trim()) return;
-    onAddAdHoc(text, pickObjective);
-    setText("");
-    setPickObjective(undefined);
+  // Bucket tasks by zone (default zone 0 = top)
+  const byZone: Record<TaskZone, TaskInstance[]> = { 0: [], 1: [], 2: [], 3: [] };
+  for (const t of instances) {
+    const z = (t.zone ?? 0) as TaskZone;
+    byZone[z].push(t);
+  }
+
+  // Determine which ritual blocks exist (shown in this order: before, mid, after)
+  const ritualsBySlot: Record<EnergySlot, EnergyRitual[]> = {
+    before: [],
+    mid: [],
+    after: [],
+  };
+  for (const r of rituals) ritualsBySlot[r.slot].push(r);
+
+  // Map zones to ritual blocks rendered AFTER each zone (zone 0 → before block, 1 → mid, 2 → after, 3 → none)
+  const ritualForZone: Record<TaskZone, EnergySlot | null> = {
+    0: ritualsBySlot.before.length ? "before" : null,
+    1: ritualsBySlot.mid.length ? "mid" : null,
+    2: ritualsBySlot.after.length ? "after" : null,
+    3: null,
   };
 
-  // Count unfinished, non-recurring (ad-hoc) tasks for the copy button
   const copyableCount = instances.filter(
     (t) => !t.done && !t.libraryId,
   ).length;
@@ -116,78 +139,390 @@ export function DayCard({
         </div>
       </div>
 
-      {/* Energy ritual sub-sections */}
-      {rituals.length > 0 && (
-        <div className="mb-3 space-y-2 rounded-md border border-rule/50 bg-paper/30 p-2">
-          {ENERGY_SLOTS.map((slot) => {
-            const slotRituals = rituals.filter((r) => r.slot === slot.id);
-            if (slotRituals.length === 0) return null;
+      <SortableContext
+        items={instances.map((t) => t.id)}
+        strategy={verticalListSortingStrategy}
+      >
+        <div className="flex-1 space-y-3">
+          {ZONES.map((zone) => {
+            const zoneTasks = byZone[zone];
+            const ritualSlot = ritualForZone[zone];
             return (
-              <RitualSlot
-                key={slot.id}
-                slot={slot.id}
-                label={slot.short}
-                rituals={slotRituals}
-                day={dayName}
-                energyDone={energyDone}
-                onToggleRitual={onToggleRitual}
-              />
+              <div key={zone} className="space-y-2">
+                <ZoneDropArea
+                  day={dayName}
+                  zone={zone}
+                  isEmpty={zoneTasks.length === 0}
+                >
+                  <ul className="space-y-1.5">
+                    {zoneTasks.map((t) => {
+                      const obj = objectiveById(t.objectiveId);
+                      const color = obj ? objectiveColor(obj) : undefined;
+                      return (
+                        <SortableTask
+                          key={t.id}
+                          task={t}
+                          color={color}
+                          onToggle={() => onToggle(t)}
+                          onRemove={() => onRemove(t)}
+                          onUpdateText={(text) => onUpdateText(t, text)}
+                        />
+                      );
+                    })}
+                  </ul>
+                </ZoneDropArea>
+
+                <QuickAdd
+                  objectives={objectives}
+                  library={library}
+                  onAdd={(text, objectiveId, kind) =>
+                    onAddAdHoc(text, objectiveId, kind, zone)
+                  }
+                  onPickLibrary={(lib) => onAddFromLibrary(lib, zone)}
+                />
+
+                {ritualSlot && (
+                  <RitualBlock
+                    slot={ritualSlot}
+                    rituals={ritualsBySlot[ritualSlot]}
+                    day={dayName}
+                    energyDone={energyDone}
+                    onToggleRitual={onToggleRitual}
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </SortableContext>
+    </div>
+  );
+}
+
+/* ============================================================
+ * Zone drop area (highlights when dragging over)
+ * ============================================================ */
+function ZoneDropArea({
+  day,
+  zone,
+  isEmpty,
+  children,
+}: {
+  day: DayName;
+  zone: TaskZone;
+  isEmpty: boolean;
+  children: React.ReactNode;
+}) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: `zone:${day}:${zone}`,
+  });
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(
+        "rounded-md transition-colors",
+        isOver && "bg-primary/5 ring-1 ring-primary/30",
+        isEmpty && "min-h-[8px]",
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
+/* ============================================================
+ * Sortable task — full-card drag, colored fill, inline edit
+ * ============================================================ */
+function SortableTask({
+  task,
+  color,
+  onToggle,
+  onRemove,
+  onUpdateText,
+}: {
+  task: TaskInstance;
+  color?: string;
+  onToggle: () => void;
+  onRemove: () => void;
+  onUpdateText: (text: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(task.text);
+
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: task.id, disabled: editing });
+
+  const isPersonal = task.kind === "personal";
+
+  // Build colored bg/border. Use objective color if present, else neutral.
+  const accent = color ?? "var(--rule)";
+  const bgStyle: React.CSSProperties = color
+    ? { backgroundColor: `color-mix(in oklab, ${color} 12%, var(--card))` }
+    : { backgroundColor: "var(--paper)" };
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    borderColor: color ? `color-mix(in oklab, ${accent} 80%, var(--ink))` : undefined,
+    ...bgStyle,
+  };
+
+  const commitEdit = () => {
+    const t = draft.trim();
+    if (t && t !== task.text) onUpdateText(t);
+    else setDraft(task.text);
+    setEditing(false);
+  };
+
+  return (
+    <li
+      ref={setNodeRef}
+      style={style}
+      {...(editing ? {} : attributes)}
+      {...(editing ? {} : listeners)}
+      className={cn(
+        "group relative flex items-start gap-2 rounded-md border px-2.5 py-1.5",
+        editing ? "cursor-text" : "cursor-grab active:cursor-grabbing",
+        !color && "border-rule",
+      )}
+    >
+      <button
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={onToggle}
+        className={cn(
+          "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border transition-colors",
+          task.done
+            ? "border-transparent text-paper"
+            : "border-ink/40 hover:border-ink",
+        )}
+        style={
+          task.done
+            ? { backgroundColor: color ?? "var(--ink)" }
+            : undefined
+        }
+        aria-label={task.done ? "Mark incomplete" : "Mark complete"}
+      >
+        {task.done && <Check className="h-3 w-3" strokeWidth={3} />}
+      </button>
+
+      {editing ? (
+        <input
+          autoFocus
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commitEdit}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+            if (e.key === "Escape") {
+              setDraft(task.text);
+              setEditing(false);
+            }
+          }}
+          onPointerDown={(e) => e.stopPropagation()}
+          className="flex-1 border-b border-ink/50 bg-transparent text-sm leading-snug text-ink focus:outline-none"
+        />
+      ) : (
+        <span
+          onPointerDown={(e) => {
+            // Allow dbl-click to edit without starting drag.
+          }}
+          onDoubleClick={(e) => {
+            e.stopPropagation();
+            setDraft(task.text);
+            setEditing(true);
+          }}
+          className={cn(
+            "flex-1 select-none text-sm leading-snug text-ink",
+            task.done && "text-muted-foreground line-through",
+          )}
+          title="Double-click to edit"
+        >
+          {task.text}
+          {isPersonal && (
+            <Heart className="ml-1.5 inline h-3 w-3 align-text-top text-chart-2" />
+          )}
+          {task.libraryId && (
+            <Repeat className="ml-1.5 inline h-3 w-3 align-text-top text-muted-foreground" />
+          )}
+        </span>
+      )}
+
+      {!editing && (
+        <button
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={onRemove}
+          className="mt-0.5 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
+          aria-label="Remove"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      )}
+    </li>
+  );
+}
+
+/* ============================================================
+ * Inline quick-add (per zone): text + objective + kind + library
+ * ============================================================ */
+function QuickAdd({
+  objectives,
+  library,
+  onAdd,
+  onPickLibrary,
+}: {
+  objectives: Objective[];
+  library: LibraryTask[];
+  onAdd: (
+    text: string,
+    objectiveId: string | undefined,
+    kind: ObjectiveKind,
+  ) => void;
+  onPickLibrary: (lib: LibraryTask) => void;
+}) {
+  const [text, setText] = useState("");
+  const [pickObjective, setPickObjective] = useState<string | undefined>();
+  const [kind, setKind] = useState<ObjectiveKind>("work");
+  const [showLibrary, setShowLibrary] = useState(false);
+
+  // Filter objective chips by current kind
+  const visibleObjectives = objectives.filter(
+    (o) => (o.kind ?? "work") === kind,
+  );
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!text.trim()) return;
+    onAdd(text, pickObjective, kind);
+    setText("");
+    setPickObjective(undefined);
+  };
+
+  return (
+    <div className="space-y-1.5 rounded-md border border-dashed border-rule/60 bg-paper/30 p-2">
+      <form onSubmit={submit} className="flex items-center gap-1.5">
+        <button
+          type="button"
+          onClick={() => {
+            setKind((k) => (k === "work" ? "personal" : "work"));
+            setPickObjective(undefined);
+          }}
+          className={cn(
+            "flex h-6 w-6 shrink-0 items-center justify-center rounded-md border transition-colors",
+            kind === "personal"
+              ? "border-chart-2 bg-chart-2/10 text-chart-2"
+              : "border-rule text-muted-foreground hover:text-ink",
+          )}
+          title={kind === "personal" ? "Personal task" : "Work task"}
+        >
+          {kind === "personal" ? (
+            <Heart className="h-3 w-3" />
+          ) : (
+            <Briefcase className="h-3 w-3" />
+          )}
+        </button>
+        <Plus className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+        <input
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder={
+            kind === "personal" ? "Personal task…" : "Quick task…"
+          }
+          className="flex-1 bg-transparent text-xs text-ink placeholder:text-muted-foreground/70 focus:outline-none"
+        />
+        <button
+          type="button"
+          onClick={() => setShowLibrary((v) => !v)}
+          className="text-xs text-muted-foreground hover:text-ink"
+          title="From library"
+        >
+          <ChevronDown
+            className={cn(
+              "h-3.5 w-3.5 transition-transform",
+              showLibrary && "rotate-180",
+            )}
+          />
+        </button>
+      </form>
+
+      {text.trim() && visibleObjectives.length > 0 && (
+        <div className="flex flex-wrap gap-1 pl-9">
+          <button
+            type="button"
+            onClick={() => setPickObjective(undefined)}
+            className={cn(
+              "rounded-full border px-1.5 py-0.5 text-[9px] uppercase tracking-wider",
+              !pickObjective
+                ? "border-ink text-ink"
+                : "border-rule text-muted-foreground",
+            )}
+          >
+            None
+          </button>
+          {visibleObjectives.map((o) => {
+            const c = objectiveColor(o);
+            const active = pickObjective === o.id;
+            return (
+              <button
+                type="button"
+                key={o.id}
+                onClick={() => setPickObjective(o.id)}
+                className={cn(
+                  "flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[9px] uppercase tracking-wider",
+                  active
+                    ? "border-transparent text-paper"
+                    : "border-rule text-ink",
+                )}
+                style={
+                  active ? { backgroundColor: c } : { borderColor: c }
+                }
+              >
+                <span
+                  className="h-1.5 w-1.5 rounded-full"
+                  style={{ backgroundColor: c }}
+                />
+                {o.text}
+              </button>
             );
           })}
         </div>
       )}
 
-      <SortableContext
-        items={instances.map((t) => t.id)}
-        strategy={verticalListSortingStrategy}
-      >
-        <ul className="flex-1 space-y-1">
-          {instances.length === 0 && (
-            <li className="py-2 text-sm italic text-muted-foreground/70">
-              Nothing planned.
-            </li>
-          )}
-          {instances.map((t) => {
-            const obj = objectiveById(t.objectiveId);
-            const color = obj ? objectiveColor(obj) : undefined;
-            return (
-              <SortableTask
-                key={t.id}
-                task={t}
-                color={color}
-                onToggle={() => onToggle(t)}
-                onRemove={() => onRemove(t)}
-              />
-            );
-          })}
-        </ul>
-      </SortableContext>
-
-      {/* Library picker */}
       {showLibrary && (
-        <div className="mt-3 max-h-40 overflow-y-auto rounded-md border border-rule bg-paper/60 p-2">
+        <div className="max-h-40 overflow-y-auto rounded-md border border-rule bg-paper/60 p-1">
           {library.length === 0 ? (
-            <p className="px-1 py-1 text-xs italic text-muted-foreground">
+            <p className="px-1 py-1 text-[11px] italic text-muted-foreground">
               Library is empty.
             </p>
           ) : (
             library.map((lib) => {
-              const obj = objectiveById(lib.objectiveId);
+              const obj = lib.objectiveId
+                ? objectives.find((o) => o.id === lib.objectiveId)
+                : undefined;
               const color = obj ? objectiveColor(obj) : undefined;
               return (
                 <button
                   key={lib.id}
                   onClick={() => {
-                    onAddFromLibrary(lib);
+                    onPickLibrary(lib);
                     setShowLibrary(false);
                   }}
-                  className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs text-ink hover:bg-accent"
+                  className="flex w-full items-center gap-2 rounded px-2 py-1 text-left text-xs text-ink hover:bg-accent"
                 >
                   {color && (
                     <span
                       className="h-2 w-2 shrink-0 rounded-full"
                       style={{ backgroundColor: color }}
                     />
+                  )}
+                  {lib.kind === "personal" && (
+                    <Heart className="h-3 w-3 shrink-0 text-chart-2" />
                   )}
                   <span className="flex-1 truncate">{lib.text}</span>
                   {lib.recurrence.kind === "weekly" && (
@@ -199,193 +534,38 @@ export function DayCard({
           )}
         </div>
       )}
-
-      {/* Quick add */}
-      <form
-        onSubmit={submit}
-        className="mt-3 space-y-2 border-t border-rule pt-3"
-      >
-        <div className="flex items-center gap-2">
-          <Plus className="h-4 w-4 shrink-0 text-muted-foreground" />
-          <input
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="Quick task…"
-            className="flex-1 bg-transparent text-sm text-ink placeholder:text-muted-foreground/70 focus:outline-none"
-          />
-          <button
-            type="button"
-            onClick={() => setShowLibrary((v) => !v)}
-            className="text-xs text-muted-foreground hover:text-ink"
-          >
-            <ChevronDown
-              className={cn(
-                "h-3.5 w-3.5 transition-transform",
-                showLibrary && "rotate-180",
-              )}
-            />
-          </button>
-        </div>
-        {text.trim() && objectives.length > 0 && (
-          <div className="ml-6 flex flex-wrap gap-1">
-            <button
-              type="button"
-              onClick={() => setPickObjective(undefined)}
-              className={cn(
-                "rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wider",
-                !pickObjective
-                  ? "border-ink text-ink"
-                  : "border-rule text-muted-foreground",
-              )}
-            >
-              None
-            </button>
-            {objectives.map((o) => {
-              const c = objectiveColor(o);
-              const active = pickObjective === o.id;
-              return (
-                <button
-                  type="button"
-                  key={o.id}
-                  onClick={() => setPickObjective(o.id)}
-                  className={cn(
-                    "flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wider",
-                    active
-                      ? "border-transparent text-paper"
-                      : "border-rule text-ink",
-                  )}
-                  style={
-                    active ? { backgroundColor: c } : { borderColor: c }
-                  }
-                >
-                  <span
-                    className="h-1.5 w-1.5 rounded-full"
-                    style={{ backgroundColor: c }}
-                  />
-                  {o.text}
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </form>
     </div>
   );
 }
 
-function SortableTask({
-  task,
-  color,
-  onToggle,
-  onRemove,
-}: {
-  task: TaskInstance;
-  color?: string;
-  onToggle: () => void;
-  onRemove: () => void;
-}) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: task.id });
-
-  const style: React.CSSProperties = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-    ...(color
-      ? {
-          borderLeftWidth: 3,
-          borderLeftStyle: "solid",
-          borderLeftColor: color,
-          paddingLeft: 6,
-        }
-      : {}),
-  };
-
-  return (
-    <li
-      ref={setNodeRef}
-      style={style}
-      className="group flex items-start gap-1 rounded-md py-1 pl-1 pr-1 hover:bg-accent/40"
-    >
-      <button
-        {...attributes}
-        {...listeners}
-        className="mt-1 cursor-grab text-muted-foreground/40 opacity-0 transition-opacity hover:text-ink active:cursor-grabbing group-hover:opacity-100"
-        aria-label="Drag to reorder"
-      >
-        <GripVertical className="h-3.5 w-3.5" />
-      </button>
-      <button
-        onClick={onToggle}
-        className={cn(
-          "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border transition-colors",
-          task.done
-            ? "border-transparent text-paper"
-            : "border-rule hover:border-ink",
-        )}
-        style={
-          task.done
-            ? { backgroundColor: color ?? "var(--ink)" }
-            : undefined
-        }
-        aria-label={task.done ? "Mark incomplete" : "Mark complete"}
-      >
-        {task.done && <Check className="h-3 w-3" strokeWidth={3} />}
-      </button>
-      <span
-        className={cn(
-          "flex-1 text-sm leading-snug text-ink",
-          task.done && "text-muted-foreground line-through",
-        )}
-      >
-        {task.text}
-        {task.libraryId && (
-          <Repeat className="ml-1.5 inline h-3 w-3 align-text-top text-muted-foreground" />
-        )}
-      </span>
-      <button
-        onClick={onRemove}
-        className="mt-0.5 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
-        aria-label="Remove"
-      >
-        <X className="h-3.5 w-3.5" />
-      </button>
-    </li>
-  );
-}
-
-function RitualSlot({
+/* ============================================================
+ * Ritual block (Before / Mid / After)
+ * ============================================================ */
+function RitualBlock({
   slot,
-  label,
   rituals,
   day,
   energyDone,
   onToggleRitual,
 }: {
   slot: EnergySlot;
-  label: string;
   rituals: EnergyRitual[];
   day: DayName;
   energyDone: Record<string, boolean>;
   onToggleRitual: (ritualId: string) => void;
 }) {
+  const slotMeta = ENERGY_SLOTS.find((s) => s.id === slot)!;
   return (
-    <div>
-      <p className="mb-1 flex items-center gap-1 text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+    <div className="rounded-md border border-primary/20 bg-primary/5 p-2">
+      <p className="mb-1 flex items-center gap-1 text-[10px] uppercase tracking-[0.2em] text-primary/80">
         <Sparkles className="h-2.5 w-2.5" />
-        {label}
+        {slotMeta.short}
       </p>
       <ul className="space-y-0.5">
         {rituals.map((r) => {
           const done = !!energyDone[energyKey(r.id, day)];
           return (
-            <li key={`${slot}:${r.id}`} className="flex items-center gap-2">
+            <li key={r.id} className="flex items-center gap-2">
               <button
                 onClick={() => onToggleRitual(r.id)}
                 className={cn(
