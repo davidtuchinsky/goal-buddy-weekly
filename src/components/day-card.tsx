@@ -266,17 +266,26 @@ function SortableTask({
 
   const isPersonal = task.kind === "personal";
 
-  // Build colored bg/border. Use objective color if present, else neutral.
-  const accent = color ?? "var(--rule)";
+  // Build colored bg/border. Personal tasks always use chart-2 (pink/rose) tint when no objective color.
+  const personalAccent = "var(--chart-2)";
+  const accent = color ?? (isPersonal ? personalAccent : "var(--rule)");
   const bgStyle: React.CSSProperties = color
     ? { backgroundColor: `color-mix(in oklab, ${color} 12%, var(--card))` }
-    : { backgroundColor: "var(--paper)" };
+    : isPersonal
+      ? { backgroundColor: `color-mix(in oklab, ${personalAccent} 14%, var(--card))` }
+      : { backgroundColor: "var(--paper)" };
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
-    borderColor: color ? `color-mix(in oklab, ${accent} 80%, var(--ink))` : undefined,
+    borderColor: color
+      ? `color-mix(in oklab, ${accent} 80%, var(--ink))`
+      : isPersonal
+        ? `color-mix(in oklab, ${personalAccent} 70%, var(--ink))`
+        : undefined,
+    borderLeftWidth: isPersonal ? 4 : undefined,
+    borderStyle: isPersonal && !color ? "dashed" : undefined,
     ...bgStyle,
   };
 
@@ -296,7 +305,7 @@ function SortableTask({
       className={cn(
         "group relative flex items-start gap-2 rounded-md border px-2.5 py-1.5",
         editing ? "cursor-text" : "cursor-grab active:cursor-grabbing",
-        !color && "border-rule",
+        !color && !isPersonal && "border-rule",
       )}
     >
       <button
