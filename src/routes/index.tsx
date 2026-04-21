@@ -550,7 +550,7 @@ function Index() {
       <main className="mx-auto max-w-7xl space-y-10 px-6 py-10 md:px-10">
         <DndContext sensors={dndSensors} onDragEnd={handleCrossDayDrag}>
           {/* Top: North Star (Big Rocks + Personal Goals) + Upcoming + Radar */}
-          <section className="grid gap-6 lg:grid-cols-2">
+          <section className="grid gap-6 md:grid-cols-2">
             <ObjectivesPanel
               objectives={objectives}
               setObjectives={setObjectives}
@@ -565,7 +565,7 @@ function Index() {
             />
           </section>
 
-          <section className="grid gap-6 lg:grid-cols-2">
+          <section className="grid gap-6 md:grid-cols-2">
             <BacklogPanel
               backlog={backlog}
               setBacklog={setBacklog}
