@@ -147,39 +147,45 @@ export function DayCard({
           {ZONES.map((zone) => {
             const zoneTasks = byZone[zone];
             const ritualSlot = ritualForZone[zone];
+            // Hide zone 0 entirely when a "before" ritual exists — no tasks happen before the first ritual.
+            const hideZone = zone === 0 && ritualsBySlot.before.length > 0;
             return (
               <div key={zone} className="space-y-2">
-                <ZoneDropArea
-                  day={dayName}
-                  zone={zone}
-                  isEmpty={zoneTasks.length === 0}
-                >
-                  <ul className="space-y-1.5">
-                    {zoneTasks.map((t) => {
-                      const obj = objectiveById(t.objectiveId);
-                      const color = obj ? objectiveColor(obj) : undefined;
-                      return (
-                        <SortableTask
-                          key={t.id}
-                          task={t}
-                          color={color}
-                          onToggle={() => onToggle(t)}
-                          onRemove={() => onRemove(t)}
-                          onUpdateText={(text) => onUpdateText(t, text)}
-                        />
-                      );
-                    })}
-                  </ul>
-                </ZoneDropArea>
+                {!hideZone && (
+                  <>
+                    <ZoneDropArea
+                      day={dayName}
+                      zone={zone}
+                      isEmpty={zoneTasks.length === 0}
+                    >
+                      <ul className="space-y-1.5">
+                        {zoneTasks.map((t) => {
+                          const obj = objectiveById(t.objectiveId);
+                          const color = obj ? objectiveColor(obj) : undefined;
+                          return (
+                            <SortableTask
+                              key={t.id}
+                              task={t}
+                              color={color}
+                              onToggle={() => onToggle(t)}
+                              onRemove={() => onRemove(t)}
+                              onUpdateText={(text) => onUpdateText(t, text)}
+                            />
+                          );
+                        })}
+                      </ul>
+                    </ZoneDropArea>
 
-                <QuickAdd
-                  objectives={objectives}
-                  library={library}
-                  onAdd={(text, objectiveId, kind) =>
-                    onAddAdHoc(text, objectiveId, kind, zone)
-                  }
-                  onPickLibrary={(lib) => onAddFromLibrary(lib, zone)}
-                />
+                    <QuickAdd
+                      objectives={objectives}
+                      library={library}
+                      onAdd={(text, objectiveId, kind) =>
+                        onAddAdHoc(text, objectiveId, kind, zone)
+                      }
+                      onPickLibrary={(lib) => onAddFromLibrary(lib, zone)}
+                    />
+                  </>
+                )}
 
                 {ritualSlot && (
                   <RitualBlock
@@ -260,17 +266,26 @@ function SortableTask({
 
   const isPersonal = task.kind === "personal";
 
-  // Build colored bg/border. Use objective color if present, else neutral.
-  const accent = color ?? "var(--rule)";
+  // Build colored bg/border. Personal tasks always use chart-2 (pink/rose) tint when no objective color.
+  const personalAccent = "var(--chart-2)";
+  const accent = color ?? (isPersonal ? personalAccent : "var(--rule)");
   const bgStyle: React.CSSProperties = color
     ? { backgroundColor: `color-mix(in oklab, ${color} 12%, var(--card))` }
-    : { backgroundColor: "var(--paper)" };
+    : isPersonal
+      ? { backgroundColor: `color-mix(in oklab, ${personalAccent} 14%, var(--card))` }
+      : { backgroundColor: "var(--paper)" };
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
-    borderColor: color ? `color-mix(in oklab, ${accent} 80%, var(--ink))` : undefined,
+    borderColor: color
+      ? `color-mix(in oklab, ${accent} 80%, var(--ink))`
+      : isPersonal
+        ? `color-mix(in oklab, ${personalAccent} 70%, var(--ink))`
+        : undefined,
+    borderLeftWidth: isPersonal ? 4 : undefined,
+    borderStyle: isPersonal && !color ? "dashed" : undefined,
     ...bgStyle,
   };
 
@@ -290,7 +305,7 @@ function SortableTask({
       className={cn(
         "group relative flex items-start gap-2 rounded-md border px-2.5 py-1.5",
         editing ? "cursor-text" : "cursor-grab active:cursor-grabbing",
-        !color && "border-rule",
+        !color && !isPersonal && "border-rule",
       )}
     >
       <button
@@ -344,10 +359,12 @@ function SortableTask({
           )}
           title="Double-click to edit"
         >
-          {task.text}
           {isPersonal && (
-            <Heart className="ml-1.5 inline h-3 w-3 align-text-top text-chart-2" />
+            <span className="mr-1.5 inline-flex items-center gap-0.5 rounded-sm bg-chart-2/20 px-1 py-px text-[9px] font-semibold uppercase tracking-wider text-chart-2 align-middle">
+              <Heart className="h-2.5 w-2.5" /> Personal
+            </span>
           )}
+          {task.text}
           {task.libraryId && (
             <Repeat className="ml-1.5 inline h-3 w-3 align-text-top text-muted-foreground" />
           )}
