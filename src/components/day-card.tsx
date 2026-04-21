@@ -55,7 +55,7 @@ type Props = {
   onToggleRitual: (ritualId: string) => void;
 };
 
-const ZONES: TaskZone[] = [0, 1, 2, 3];
+const ZONES: TaskZone[] = [1, 2, 3];
 
 export function DayCard({
   dayName,
