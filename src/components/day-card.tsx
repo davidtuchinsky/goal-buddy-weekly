@@ -79,14 +79,15 @@ export function DayCard({
   const objectiveById = (id?: string) =>
     id ? objectives.find((o) => o.id === id) : undefined;
 
-  // Bucket tasks by zone (default zone 0 = top)
+  // Bucket tasks by zone. Zone 0 is deprecated — fold any legacy zone-0 tasks into zone 1.
   const byZone: Record<TaskZone, TaskInstance[]> = { 0: [], 1: [], 2: [], 3: [] };
   for (const t of instances) {
-    const z = (t.zone ?? 0) as TaskZone;
+    let z = (t.zone ?? 1) as TaskZone;
+    if (z === 0) z = 1;
     byZone[z].push(t);
   }
 
-  // Determine which ritual blocks exist (shown in this order: before, mid, after)
+  // Determine which ritual blocks exist
   const ritualsBySlot: Record<EnergySlot, EnergyRitual[]> = {
     before: [],
     mid: [],
@@ -94,12 +95,12 @@ export function DayCard({
   };
   for (const r of rituals) ritualsBySlot[r.slot].push(r);
 
-  // Map zones to ritual blocks rendered AFTER each zone (zone 0 → before block, 1 → mid, 2 → after, 3 → none)
-  const ritualForZone: Record<TaskZone, EnergySlot | null> = {
-    0: ritualsBySlot.before.length ? "before" : null,
-    1: ritualsBySlot.mid.length ? "mid" : null,
-    2: ritualsBySlot.after.length ? "after" : null,
-    3: null,
+  // Ritual block rendered BEFORE each zone: zone 1 → before, zone 2 → mid, zone 3 → after
+  const ritualBeforeZone: Record<TaskZone, EnergySlot | null> = {
+    0: null,
+    1: ritualsBySlot.before.length ? "before" : null,
+    2: ritualsBySlot.mid.length ? "mid" : null,
+    3: ritualsBySlot.after.length ? "after" : null,
   };
 
   const copyableCount = instances.filter(
