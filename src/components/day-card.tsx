@@ -147,47 +147,9 @@ export function DayCard({
         <div className="flex-1 space-y-3">
           {ZONES.map((zone) => {
             const zoneTasks = byZone[zone];
-            const ritualSlot = ritualForZone[zone];
-            // Hide zone 0 entirely when a "before" ritual exists — no tasks happen before the first ritual.
-            const hideZone = zone === 0 && ritualsBySlot.before.length > 0;
+            const ritualSlot = ritualBeforeZone[zone];
             return (
               <div key={zone} className="space-y-2">
-                {!hideZone && (
-                  <>
-                    <ZoneDropArea
-                      day={dayName}
-                      zone={zone}
-                      isEmpty={zoneTasks.length === 0}
-                    >
-                      <ul className="space-y-1.5">
-                        {zoneTasks.map((t) => {
-                          const obj = objectiveById(t.objectiveId);
-                          const color = obj ? objectiveColor(obj) : undefined;
-                          return (
-                            <SortableTask
-                              key={t.id}
-                              task={t}
-                              color={color}
-                              onToggle={() => onToggle(t)}
-                              onRemove={() => onRemove(t)}
-                              onUpdateText={(text) => onUpdateText(t, text)}
-                            />
-                          );
-                        })}
-                      </ul>
-                    </ZoneDropArea>
-
-                    <QuickAdd
-                      objectives={objectives}
-                      library={library}
-                      onAdd={(text, objectiveId, kind) =>
-                        onAddAdHoc(text, objectiveId, kind, zone)
-                      }
-                      onPickLibrary={(lib) => onAddFromLibrary(lib, zone)}
-                    />
-                  </>
-                )}
-
                 {ritualSlot && (
                   <RitualBlock
                     slot={ritualSlot}
@@ -197,6 +159,38 @@ export function DayCard({
                     onToggleRitual={onToggleRitual}
                   />
                 )}
+
+                <ZoneDropArea
+                  day={dayName}
+                  zone={zone}
+                  isEmpty={zoneTasks.length === 0}
+                >
+                  <ul className="space-y-1.5">
+                    {zoneTasks.map((t) => {
+                      const obj = objectiveById(t.objectiveId);
+                      const color = obj ? objectiveColor(obj) : undefined;
+                      return (
+                        <SortableTask
+                          key={t.id}
+                          task={t}
+                          color={color}
+                          onToggle={() => onToggle(t)}
+                          onRemove={() => onRemove(t)}
+                          onUpdateText={(text) => onUpdateText(t, text)}
+                        />
+                      );
+                    })}
+                  </ul>
+                </ZoneDropArea>
+
+                <QuickAdd
+                  objectives={objectives}
+                  library={library}
+                  onAdd={(text, objectiveId, kind) =>
+                    onAddAdHoc(text, objectiveId, kind, zone)
+                  }
+                  onPickLibrary={(lib) => onAddFromLibrary(lib, zone)}
+                />
               </div>
             );
           })}
