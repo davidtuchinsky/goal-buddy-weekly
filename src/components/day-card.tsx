@@ -359,10 +359,12 @@ function SortableTask({
           )}
           title="Double-click to edit"
         >
-          {task.text}
           {isPersonal && (
-            <Heart className="ml-1.5 inline h-3 w-3 align-text-top text-chart-2" />
+            <span className="mr-1.5 inline-flex items-center gap-0.5 rounded-sm bg-chart-2/20 px-1 py-px text-[9px] font-semibold uppercase tracking-wider text-chart-2 align-middle">
+              <Heart className="h-2.5 w-2.5" /> Personal
+            </span>
           )}
+          {task.text}
           {task.libraryId && (
             <Repeat className="ml-1.5 inline h-3 w-3 align-text-top text-muted-foreground" />
           )}
