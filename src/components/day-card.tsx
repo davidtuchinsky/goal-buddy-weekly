@@ -244,18 +244,23 @@ function ZoneDropArea({
 function SortableTask({
   task,
   color,
+  currentDay,
   onToggle,
   onRemove,
   onUpdateText,
+  onCopyToDay,
 }: {
   task: TaskInstance;
   color?: string;
+  currentDay: DayName;
   onToggle: () => void;
   onRemove: () => void;
   onUpdateText: (text: string) => void;
+  onCopyToDay: (targetDay: DayName) => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(task.text);
+  const [copyOpen, setCopyOpen] = useState(false);
 
   const {
     attributes,
