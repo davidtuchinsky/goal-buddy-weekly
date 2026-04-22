@@ -30,7 +30,7 @@ import {
   type TaskInstance,
   type TaskZone,
 } from "@/lib/types";
-import { type DayName, formatDayLabel } from "@/lib/week";
+import { DAYS, type DayName, formatDayLabel } from "@/lib/week";
 import { cn } from "@/lib/utils";
 
 type Props = {
