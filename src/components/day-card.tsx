@@ -177,9 +177,13 @@ export function DayCard({
                           key={t.id}
                           task={t}
                           color={color}
+                          currentDay={dayName}
                           onToggle={() => onToggle(t)}
                           onRemove={() => onRemove(t)}
                           onUpdateText={(text) => onUpdateText(t, text)}
+                          onCopyToDay={(targetDay) =>
+                            onCopyInstanceToDay(t, targetDay)
+                          }
                         />
                       );
                     })}
