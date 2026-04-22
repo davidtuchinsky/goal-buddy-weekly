@@ -4,6 +4,7 @@ import {
   Check,
   ChevronDown,
   Copy,
+  CornerUpRight,
   Heart,
   Plus,
   Repeat,
