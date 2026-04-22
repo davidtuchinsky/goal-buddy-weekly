@@ -304,6 +304,27 @@ function Index() {
     }
   };
 
+  /** Copy a single instance to another day (preserves source, creates ad-hoc copy). */
+  const copyInstanceToDay = (t: TaskInstance, targetDay: DayName) => {
+    setWeek({
+      ...week,
+      adHoc: [
+        ...week.adHoc,
+        {
+          id: uid(),
+          libraryId: t.libraryId,
+          text: t.text,
+          objectiveId: t.objectiveId,
+          kind: t.kind ?? "work",
+          day: targetDay,
+          done: false,
+          order: nextOrder(targetDay),
+          zone: t.zone ?? 0,
+        },
+      ],
+    });
+  };
+
   /** Copy unfinished ad-hoc (non-recurring) tasks for `day` to next day. */
   const copyUnfinishedToNext = (day: DayName) => {
     const target = nextDay(day);
@@ -607,6 +628,7 @@ function Index() {
                       onCopyUnfinishedToNext={() =>
                         copyUnfinishedToNext(dayName)
                       }
+                      onCopyInstanceToDay={copyInstanceToDay}
                       onToggleRitual={(rid) => toggleRitual(dayName, rid)}
                     />
                   </DayDroppable>
