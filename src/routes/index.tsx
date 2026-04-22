@@ -628,6 +628,7 @@ function Index() {
                       onCopyUnfinishedToNext={() =>
                         copyUnfinishedToNext(dayName)
                       }
+                      onCopyInstanceToDay={copyInstanceToDay}
                       onToggleRitual={(rid) => toggleRitual(dayName, rid)}
                     />
                   </DayDroppable>
