@@ -580,6 +580,11 @@ function Index() {
               </h1>
             </div>
             <div className="flex flex-wrap items-center gap-2">
+              <UndoButton
+                history={undo.history as never}
+                onUndoLast={undo.undoLast}
+                onUndoTo={undo.undoTo}
+              />
               <button
                 onClick={() => setRitualsOpen(true)}
                 className="inline-flex h-10 items-center gap-2 rounded-full border border-rule px-4 text-sm font-medium text-ink transition-colors hover:bg-accent"
