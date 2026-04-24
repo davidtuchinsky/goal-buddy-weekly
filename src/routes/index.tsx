@@ -4,6 +4,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Library,
+  RotateCcw,
   Sparkles,
 } from "lucide-react";
 import {
