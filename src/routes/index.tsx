@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -7,6 +7,8 @@ import {
   RotateCcw,
   Sparkles,
 } from "lucide-react";
+import { useUndoHistory } from "@/lib/undo";
+import { UndoButton } from "@/components/undo-button";
 import {
   DndContext,
   PointerSensor,
@@ -62,23 +64,74 @@ function Index() {
 
   const {
     library,
-    setLibrary,
+    setLibrary: setLibraryRaw,
     rituals,
-    setRituals,
+    setRituals: setRitualsRaw,
     backlog,
-    setBacklog,
+    setBacklog: setBacklogRaw,
     radar,
-    setRadar,
+    setRadar: setRadarRaw,
   } = useGlobalState();
-  const { objectives, setObjectives } = useWeekObjectives(cursor);
+  const { objectives, setObjectives: setObjectivesRaw } =
+    useWeekObjectives(cursor);
   const appendToNextWeekObjectives = useAppendToNextWeekObjectives(cursor);
-  const { week, setWeek } = useWeekState(cursor);
+  const { week, setWeek: setWeekRaw } = useWeekState(cursor);
 
   const today = useMemo(() => new Date(), []);
   const isCurrentWeek = useMemo(
     () => weekKey(startOfWeek(today)) === weekKey(cursor),
     [today, cursor],
   );
+
+  // Undo history (last 3 actions). Wrap raw setters so each user-driven mutation
+  // snapshots the prior state with a friendly label.
+  const undo = useUndoHistory(
+    { objectives, week, library, rituals, backlog, radar },
+    {
+      objectives: setObjectivesRaw,
+      week: setWeekRaw,
+      library: setLibraryRaw,
+      rituals: setRitualsRaw,
+      backlog: setBacklogRaw,
+      radar: setRadarRaw,
+    },
+    3,
+  );
+
+  const wrap = <T,>(label: string, setter: (v: T) => void) => (v: T) => {
+    undo.snapshot(label);
+    setter(v);
+  };
+
+  const setObjectives = wrap("Edit goals", setObjectivesRaw);
+  const setWeek = wrap("Edit week", setWeekRaw);
+  const setLibrary = wrap("Edit recurring library", setLibraryRaw);
+  const setRituals = wrap("Edit rituals", setRitualsRaw);
+  const setBacklog = wrap("Edit upcoming projects", setBacklogRaw);
+  const setRadar = wrap("Edit radar", setRadarRaw);
+
+  // ⌘Z / Ctrl+Z → undo last action
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const meta = e.metaKey || e.ctrlKey;
+      if (!meta || e.shiftKey || e.altKey) return;
+      if (e.key !== "z" && e.key !== "Z") return;
+      const t = e.target as HTMLElement | null;
+      // Don't hijack typing in inputs / contenteditable
+      if (
+        t &&
+        (t.tagName === "INPUT" ||
+          t.tagName === "TEXTAREA" ||
+          t.isContentEditable)
+      ) {
+        return;
+      }
+      e.preventDefault();
+      undo.undoLast();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [undo]);
 
   const energyDone = week.energyDone ?? {};
 
@@ -527,6 +580,11 @@ function Index() {
               </h1>
             </div>
             <div className="flex flex-wrap items-center gap-2">
+              <UndoButton
+                history={undo.history as never}
+                onUndoLast={undo.undoLast}
+                onUndoTo={undo.undoTo}
+              />
               <button
                 onClick={() => setRitualsOpen(true)}
                 className="inline-flex h-10 items-center gap-2 rounded-full border border-rule px-4 text-sm font-medium text-ink transition-colors hover:bg-accent"
