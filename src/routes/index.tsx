@@ -490,6 +490,25 @@ function Index() {
     return (week.adHoc.find((t) => t.id === id)?.zone ?? 0) as TaskZone;
   };
 
+  /**
+   * Reset this week:
+   *  - Clear all big rocks + personal goals for this week
+   *  - Drop all ad-hoc tasks (done or not, including library-sourced copies)
+   *  - Re-enable any recurring tasks that were skipped this week
+   *  - Mark all recurring instances as not done
+   *  - Clear per-week recurring order/zone overrides (back to original schedule)
+   *  - Clear energy ritual completion for the week
+   *  Radar, upcoming projects (backlog), and the recurring library remain untouched.
+   */
+  const resetWeek = () => {
+    const ok = window.confirm(
+      "Reset this week? This will delete all big rocks, personal goals, and non-recurring tasks for this week, and reset recurring tasks to their original schedule. Radar and upcoming projects are kept.",
+    );
+    if (!ok) return;
+    setObjectives([]);
+    setWeek({ ...EMPTY_WEEK });
+  };
+
 
   return (
     <div className="min-h-screen">
