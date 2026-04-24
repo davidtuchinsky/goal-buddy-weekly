@@ -1,10 +1,10 @@
 import { useState } from "react";
 import {
+  ArrowRight,
   ArrowUpRight,
   Check,
   ChevronDown,
   ChevronRight,
-  Copy,
   CopyPlus,
   Heart,
   Plus,
@@ -22,19 +22,14 @@ import {
 } from "@/lib/types";
 import { DAYS, type DayName } from "@/lib/week";
 import { cn } from "@/lib/utils";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 
 type Props = {
   objectives: Objective[];
   setObjectives: (
     next: Objective[] | ((prev: Objective[]) => Objective[]),
   ) => void;
-  /** Previous week's objectives (read-only) used for copy-forward UI. */
-  previousWeekObjectives?: Objective[];
+  /** Append cloned objectives to next week's stored list. */
+  onCopyToNextWeek?: (toAppend: Objective[]) => void;
   /** Convert a sub-bullet into an ad-hoc task on the picked day, tied to the objective. */
   onSubToTask: (
     objectiveId: string,
