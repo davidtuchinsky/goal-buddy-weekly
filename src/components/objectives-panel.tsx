@@ -291,11 +291,12 @@ function ObjectiveRow({
         {onCopyToNextWeek && (
           <button
             onClick={onCopyToNextWeek}
-            className="text-muted-foreground hover:text-ink"
-            aria-label="Copy to next week"
-            title="Copy to next week"
+            className="inline-flex items-center gap-1 rounded-full border border-rule px-2 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground hover:border-ink hover:text-ink"
+            aria-label="Copy this one to next week"
+            title="Copy this one to next week (with sub-bullets)"
           >
-            <ArrowRight className="h-3.5 w-3.5" />
+            <ArrowRight className="h-3 w-3" />
+            Next wk
           </button>
         )}
         <button
