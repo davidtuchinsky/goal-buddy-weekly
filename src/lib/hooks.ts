@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { useLocalStorage } from "@/lib/storage";
 import {
   EMPTY_WEEK,
