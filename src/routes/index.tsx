@@ -83,6 +83,56 @@ function Index() {
     [today, cursor],
   );
 
+  // Undo history (last 3 actions). Wrap raw setters so each user-driven mutation
+  // snapshots the prior state with a friendly label.
+  const undo = useUndoHistory(
+    { objectives, week, library, rituals, backlog, radar },
+    {
+      objectives: setObjectivesRaw,
+      week: setWeekRaw,
+      library: setLibraryRaw,
+      rituals: setRitualsRaw,
+      backlog: setBacklogRaw,
+      radar: setRadarRaw,
+    },
+    3,
+  );
+
+  const wrap = <T,>(label: string, setter: (v: T) => void) => (v: T) => {
+    undo.snapshot(label);
+    setter(v);
+  };
+
+  const setObjectives = wrap("Edit goals", setObjectivesRaw);
+  const setWeek = wrap("Edit week", setWeekRaw);
+  const setLibrary = wrap("Edit recurring library", setLibraryRaw);
+  const setRituals = wrap("Edit rituals", setRitualsRaw);
+  const setBacklog = wrap("Edit upcoming projects", setBacklogRaw);
+  const setRadar = wrap("Edit radar", setRadarRaw);
+
+  // ⌘Z / Ctrl+Z → undo last action
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const meta = e.metaKey || e.ctrlKey;
+      if (!meta || e.shiftKey || e.altKey) return;
+      if (e.key !== "z" && e.key !== "Z") return;
+      const t = e.target as HTMLElement | null;
+      // Don't hijack typing in inputs / contenteditable
+      if (
+        t &&
+        (t.tagName === "INPUT" ||
+          t.tagName === "TEXTAREA" ||
+          t.isContentEditable)
+      ) {
+        return;
+      }
+      e.preventDefault();
+      undo.undoLast();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [undo]);
+
   const energyDone = week.energyDone ?? {};
 
   /** Build instances for a given day (recurring + ad-hoc), sorted by order. */
