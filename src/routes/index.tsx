@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -7,6 +7,8 @@ import {
   RotateCcw,
   Sparkles,
 } from "lucide-react";
+import { useUndoHistory } from "@/lib/undo";
+import { UndoButton } from "@/components/undo-button";
 import {
   DndContext,
   PointerSensor,
