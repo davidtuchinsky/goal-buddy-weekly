@@ -32,6 +32,7 @@ import {
   useWeekState,
 } from "@/lib/hooks";
 import {
+  EMPTY_WEEK,
   energyKey,
   recurringKey,
   uid,
