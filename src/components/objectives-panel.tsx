@@ -134,7 +134,7 @@ export function ObjectivesPanel({
             <Target className="h-4 w-4" />
           )}
         </div>
-        <div>
+        <div className="flex-1">
           <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
             {isPersonal ? "Outside work" : "North star"}
           </p>
@@ -142,6 +142,63 @@ export function ObjectivesPanel({
             {isPersonal ? "Personal goals" : "Big rocks"}
           </h2>
         </div>
+        {previousFiltered.length > 0 && (
+          <Popover open={copyOpen} onOpenChange={setCopyOpen}>
+            <PopoverTrigger asChild>
+              <button
+                className="inline-flex items-center gap-1.5 rounded-full border border-rule px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-ink hover:text-ink"
+                title="Copy from last week"
+              >
+                <Copy className="h-3 w-3" />
+                Last week
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-80 p-3">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <p className="text-xs uppercase tracking-[0.15em] text-muted-foreground">
+                  From last week
+                </p>
+                <button
+                  onClick={copyAll}
+                  className="inline-flex items-center gap-1 rounded-full bg-ink px-2.5 py-1 text-[11px] font-medium text-paper hover:opacity-90"
+                >
+                  <CopyPlus className="h-3 w-3" /> Copy all
+                </button>
+              </div>
+              <ul className="max-h-72 space-y-1.5 overflow-auto">
+                {previousFiltered.map((o) => {
+                  const color = objectiveColor(o);
+                  const subCount = o.subBullets.length;
+                  return (
+                    <li
+                      key={o.id}
+                      className="flex items-start gap-2 rounded-md border border-rule/60 bg-paper/40 p-2"
+                      style={{ borderLeftWidth: 3, borderLeftColor: color }}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm leading-snug text-ink">
+                          {o.text}
+                        </p>
+                        {subCount > 0 && (
+                          <p className="text-[11px] text-muted-foreground">
+                            {subCount} sub-bullet{subCount === 1 ? "" : "s"}
+                          </p>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => copyOne(o)}
+                        className="shrink-0 rounded-full border border-rule px-2 py-0.5 text-[11px] text-ink hover:border-ink hover:bg-accent"
+                        title="Copy this big rock (with sub-bullets)"
+                      >
+                        Copy
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </PopoverContent>
+          </Popover>
+        )}
       </div>
 
       <p className="mb-4 text-xs italic text-muted-foreground">
