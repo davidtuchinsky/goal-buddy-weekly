@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { useLocalStorage } from "@/lib/storage";
 import {
   EMPTY_WEEK,
@@ -76,19 +76,25 @@ export function useWeekObjectives(weekStart: Date) {
   return { objectives, setObjectives };
 }
 
-/** Read-only view of the previous week's objectives (for copy-forward UI). */
-export function usePreviousWeekObjectives(weekStart: Date): Objective[] {
-  const prevKey = `weekly:objectives:${weekKey(addDays(weekStart, -7))}`;
-  const [prev, setPrev] = useState<Objective[]>([]);
-  useEffect(() => {
+/**
+ * Append objectives to the *next* week's stored list (without re-rendering on
+ * external changes). Used by the "copy forward" UI on the current week.
+ */
+export function useAppendToNextWeekObjectives(weekStart: Date) {
+  const nextKey = `weekly:objectives:${weekKey(addDays(weekStart, 7))}`;
+  return (toAppend: Objective[]) => {
+    if (toAppend.length === 0) return;
     try {
-      const raw = window.localStorage.getItem(prevKey);
-      setPrev(raw ? (JSON.parse(raw) as Objective[]) : []);
+      const raw = window.localStorage.getItem(nextKey);
+      const existing = raw ? (JSON.parse(raw) as Objective[]) : [];
+      window.localStorage.setItem(
+        nextKey,
+        JSON.stringify([...existing, ...toAppend]),
+      );
     } catch {
-      setPrev([]);
+      /* ignore */
     }
-  }, [prevKey]);
-  return prev;
+  };
 }
 
 /** Per-week state: ad-hoc tasks + completion overrides. */

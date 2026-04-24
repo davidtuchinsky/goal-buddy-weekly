@@ -25,8 +25,8 @@ import {
   type DayName,
 } from "@/lib/week";
 import {
+  useAppendToNextWeekObjectives,
   useGlobalState,
-  usePreviousWeekObjectives,
   useWeekObjectives,
   useWeekState,
 } from "@/lib/hooks";
@@ -69,7 +69,7 @@ function Index() {
     setRadar,
   } = useGlobalState();
   const { objectives, setObjectives } = useWeekObjectives(cursor);
-  const previousWeekObjectives = usePreviousWeekObjectives(cursor);
+  const appendToNextWeekObjectives = useAppendToNextWeekObjectives(cursor);
   const { week, setWeek } = useWeekState(cursor);
 
   const today = useMemo(() => new Date(), []);
@@ -581,14 +581,14 @@ function Index() {
             <ObjectivesPanel
               objectives={objectives}
               setObjectives={setObjectives}
-              previousWeekObjectives={previousWeekObjectives}
+              onCopyToNextWeek={appendToNextWeekObjectives}
               onSubToTask={subToTask}
               kind="work"
             />
             <ObjectivesPanel
               objectives={objectives}
               setObjectives={setObjectives}
-              previousWeekObjectives={previousWeekObjectives}
+              onCopyToNextWeek={appendToNextWeekObjectives}
               onSubToTask={subToTask}
               kind="personal"
             />
