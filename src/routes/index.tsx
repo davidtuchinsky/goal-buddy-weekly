@@ -24,13 +24,19 @@ import {
   weekKey,
   type DayName,
 } from "@/lib/week";
-import { useGlobalState, useWeekState } from "@/lib/hooks";
+import {
+  useGlobalState,
+  usePreviousWeekObjectives,
+  useWeekObjectives,
+  useWeekState,
+} from "@/lib/hooks";
 import {
   energyKey,
   recurringKey,
   uid,
   type BacklogItem,
   type LibraryTask,
+  type Objective,
   type ObjectiveKind,
   type TaskInstance,
   type TaskZone,
@@ -53,8 +59,6 @@ function Index() {
   const [ritualsOpen, setRitualsOpen] = useState(false);
 
   const {
-    objectives,
-    setObjectives,
     library,
     setLibrary,
     rituals,
@@ -64,6 +68,8 @@ function Index() {
     radar,
     setRadar,
   } = useGlobalState();
+  const { objectives, setObjectives } = useWeekObjectives(cursor);
+  const previousWeekObjectives = usePreviousWeekObjectives(cursor);
   const { week, setWeek } = useWeekState(cursor);
 
   const today = useMemo(() => new Date(), []);
@@ -575,12 +581,14 @@ function Index() {
             <ObjectivesPanel
               objectives={objectives}
               setObjectives={setObjectives}
+              previousWeekObjectives={previousWeekObjectives}
               onSubToTask={subToTask}
               kind="work"
             />
             <ObjectivesPanel
               objectives={objectives}
               setObjectives={setObjectives}
+              previousWeekObjectives={previousWeekObjectives}
               onSubToTask={subToTask}
               kind="personal"
             />
