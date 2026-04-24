@@ -62,17 +62,18 @@ function Index() {
 
   const {
     library,
-    setLibrary,
+    setLibrary: setLibraryRaw,
     rituals,
-    setRituals,
+    setRituals: setRitualsRaw,
     backlog,
-    setBacklog,
+    setBacklog: setBacklogRaw,
     radar,
-    setRadar,
+    setRadar: setRadarRaw,
   } = useGlobalState();
-  const { objectives, setObjectives } = useWeekObjectives(cursor);
+  const { objectives, setObjectives: setObjectivesRaw } =
+    useWeekObjectives(cursor);
   const appendToNextWeekObjectives = useAppendToNextWeekObjectives(cursor);
-  const { week, setWeek } = useWeekState(cursor);
+  const { week, setWeek: setWeekRaw } = useWeekState(cursor);
 
   const today = useMemo(() => new Date(), []);
   const isCurrentWeek = useMemo(
