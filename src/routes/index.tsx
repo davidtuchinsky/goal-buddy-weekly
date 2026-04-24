@@ -581,14 +581,14 @@ function Index() {
             <ObjectivesPanel
               objectives={objectives}
               setObjectives={setObjectives}
-              previousWeekObjectives={previousWeekObjectives}
+              onCopyToNextWeek={appendToNextWeekObjectives}
               onSubToTask={subToTask}
               kind="work"
             />
             <ObjectivesPanel
               objectives={objectives}
               setObjectives={setObjectives}
-              previousWeekObjectives={previousWeekObjectives}
+              onCopyToNextWeek={appendToNextWeekObjectives}
               onSubToTask={subToTask}
               kind="personal"
             />
