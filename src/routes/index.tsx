@@ -4,6 +4,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Library,
+  RotateCcw,
   Sparkles,
 } from "lucide-react";
 import {
@@ -31,6 +32,7 @@ import {
   useWeekState,
 } from "@/lib/hooks";
 import {
+  EMPTY_WEEK,
   energyKey,
   recurringKey,
   uid,
@@ -488,6 +490,25 @@ function Index() {
     return (week.adHoc.find((t) => t.id === id)?.zone ?? 0) as TaskZone;
   };
 
+  /**
+   * Reset this week:
+   *  - Clear all big rocks + personal goals for this week
+   *  - Drop all ad-hoc tasks (done or not, including library-sourced copies)
+   *  - Re-enable any recurring tasks that were skipped this week
+   *  - Mark all recurring instances as not done
+   *  - Clear per-week recurring order/zone overrides (back to original schedule)
+   *  - Clear energy ritual completion for the week
+   *  Radar, upcoming projects (backlog), and the recurring library remain untouched.
+   */
+  const resetWeek = () => {
+    const ok = window.confirm(
+      "Reset this week? This will delete all big rocks, personal goals, and non-recurring tasks for this week, and reset recurring tasks to their original schedule. Radar and upcoming projects are kept.",
+    );
+    if (!ok) return;
+    setObjectives([]);
+    setWeek({ ...EMPTY_WEEK });
+  };
+
 
   return (
     <div className="min-h-screen">
@@ -548,6 +569,13 @@ function Index() {
                 aria-label="Next week"
               >
                 <ChevronRight className="h-4 w-4" />
+              </button>
+              <button
+                onClick={resetWeek}
+                className="inline-flex h-10 items-center gap-2 rounded-full border border-rule px-4 text-sm font-medium text-muted-foreground transition-colors hover:border-destructive hover:text-destructive"
+                title="Reset this week (keeps radar, upcoming projects, and recurring library)"
+              >
+                <RotateCcw className="h-4 w-4" /> Reset week
               </button>
             </div>
           </div>
