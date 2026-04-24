@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocalStorage } from "@/lib/storage";
 import {
   EMPTY_WEEK,
@@ -12,14 +12,10 @@ import {
   recurringKey,
 } from "@/lib/types";
 import type { DayName } from "@/lib/week";
-import { weekKey } from "@/lib/week";
+import { addDays, weekKey } from "@/lib/week";
 
-/** Global (cross-week) state: objectives, library, energy rituals, backlog, radar. */
+/** Global (cross-week) state: library, energy rituals, backlog, radar. */
 export function useGlobalState() {
-  const [objectives, setObjectives] = useLocalStorage<Objective[]>(
-    "weekly:objectives",
-    [],
-  );
   const [library, setLibrary] = useLocalStorage<LibraryTask[]>(
     "weekly:library",
     [],
@@ -34,8 +30,6 @@ export function useGlobalState() {
   );
   const [radar, setRadar] = useLocalStorage<RadarItem[]>("weekly:radar", []);
   return {
-    objectives,
-    setObjectives,
     library,
     setLibrary,
     rituals,
@@ -45,6 +39,56 @@ export function useGlobalState() {
     radar,
     setRadar,
   };
+}
+
+/**
+ * Per-week objectives (Big Rocks + Personal Goals).
+ * Each week has its own list — they don't carry over automatically.
+ * Migrates legacy global `weekly:objectives` into the *current* week on first run.
+ */
+export function useWeekObjectives(weekStart: Date) {
+  const key = `weekly:objectives:${weekKey(weekStart)}`;
+  const [objectives, setObjectives] = useLocalStorage<Objective[]>(key, []);
+
+  // One-time migration: if the legacy global key has data and this week has none, move it in.
+  useEffect(() => {
+    try {
+      const legacy = window.localStorage.getItem("weekly:objectives");
+      if (!legacy) return;
+      const parsed = JSON.parse(legacy) as Objective[];
+      if (!Array.isArray(parsed) || parsed.length === 0) {
+        window.localStorage.removeItem("weekly:objectives");
+        return;
+      }
+      const existing = window.localStorage.getItem(key);
+      const existingArr = existing ? (JSON.parse(existing) as Objective[]) : [];
+      if (existingArr.length === 0) {
+        window.localStorage.setItem(key, JSON.stringify(parsed));
+        setObjectives(parsed);
+      }
+      window.localStorage.removeItem("weekly:objectives");
+    } catch {
+      /* ignore */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+
+  return { objectives, setObjectives };
+}
+
+/** Read-only view of the previous week's objectives (for copy-forward UI). */
+export function usePreviousWeekObjectives(weekStart: Date): Objective[] {
+  const prevKey = `weekly:objectives:${weekKey(addDays(weekStart, -7))}`;
+  const [prev, setPrev] = useState<Objective[]>([]);
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(prevKey);
+      setPrev(raw ? (JSON.parse(raw) as Objective[]) : []);
+    } catch {
+      setPrev([]);
+    }
+  }, [prevKey]);
+  return prev;
 }
 
 /** Per-week state: ad-hoc tasks + completion overrides. */
