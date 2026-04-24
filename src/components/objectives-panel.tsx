@@ -202,11 +202,13 @@ function ObjectiveRow({
   onChange,
   onRemove,
   onSubToTask,
+  onCopyToNextWeek,
 }: {
   objective: Objective;
   onChange: (next: Objective) => void;
   onRemove: () => void;
   onSubToTask: (subText: string, day: DayName) => void;
+  onCopyToNextWeek?: () => void;
 }) {
   const [open, setOpen] = useState(true);
   const [showColors, setShowColors] = useState(false);
@@ -284,6 +286,16 @@ function ObjectiveRow({
             className="font-display flex-1 text-left text-base font-medium leading-snug text-ink hover:underline"
           >
             {objective.text}
+          </button>
+        )}
+        {onCopyToNextWeek && (
+          <button
+            onClick={onCopyToNextWeek}
+            className="text-muted-foreground hover:text-ink"
+            aria-label="Copy to next week"
+            title="Copy to next week"
+          >
+            <ArrowRight className="h-3.5 w-3.5" />
           </button>
         )}
         <button
