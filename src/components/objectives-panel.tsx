@@ -4,6 +4,8 @@ import {
   Check,
   ChevronDown,
   ChevronRight,
+  Copy,
+  CopyPlus,
   Heart,
   Plus,
   Target,
@@ -20,12 +22,19 @@ import {
 } from "@/lib/types";
 import { DAYS, type DayName } from "@/lib/week";
 import { cn } from "@/lib/utils";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 type Props = {
   objectives: Objective[];
   setObjectives: (
     next: Objective[] | ((prev: Objective[]) => Objective[]),
   ) => void;
+  /** Previous week's objectives (read-only) used for copy-forward UI. */
+  previousWeekObjectives?: Objective[];
   /** Convert a sub-bullet into an ad-hoc task on the picked day, tied to the objective. */
   onSubToTask: (
     objectiveId: string,
@@ -39,16 +48,49 @@ type Props = {
 export function ObjectivesPanel({
   objectives,
   setObjectives,
+  previousWeekObjectives = [],
   onSubToTask,
   kind = "work",
 }: Props) {
   const [text, setText] = useState("");
+  const [copyOpen, setCopyOpen] = useState(false);
 
   const filtered = objectives.filter(
     (o) => (o.kind ?? "work") === kind,
   );
 
+  const previousFiltered = previousWeekObjectives.filter(
+    (o) => (o.kind ?? "work") === kind,
+  );
+
   const isPersonal = kind === "personal";
+
+  /** Clone a previous-week objective into this week (fresh ids, sub-bullets reset to undone). */
+  const cloneObjective = (src: Objective): Objective => ({
+    id: uid(),
+    text: src.text,
+    colorIndex: src.colorIndex,
+    colorOverride: src.colorOverride,
+    kind: src.kind ?? kind,
+    subBullets: src.subBullets.map((sb) => ({
+      id: uid(),
+      text: sb.text,
+      done: false,
+    })),
+    createdAt: Date.now(),
+  });
+
+  const copyOne = (src: Objective) => {
+    setObjectives([...objectives, cloneObjective(src)]);
+  };
+
+  const copyAll = () => {
+    setObjectives([
+      ...objectives,
+      ...previousFiltered.map(cloneObjective),
+    ]);
+    setCopyOpen(false);
+  };
 
   const add = () => {
     const t = text.trim();
