@@ -33,9 +33,12 @@ type Props = {
   /** Convert a sub-bullet into an ad-hoc task on the picked day, tied to the objective. */
   onSubToTask: (
     objectiveId: string,
+    subBulletId: string,
     subText: string,
     day: DayName,
   ) => void;
+  /** Set of sub-bullet ids that currently have an active task on the visible week. */
+  activeSubBulletIds?: Set<string>;
   /** Which kind of objectives this panel manages. Defaults to "work". */
   kind?: ObjectiveKind;
 };
