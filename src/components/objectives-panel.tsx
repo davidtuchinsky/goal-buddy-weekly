@@ -7,6 +7,7 @@ import {
   ChevronRight,
   CopyPlus,
   Heart,
+  ListChecks,
   Plus,
   Target,
   Trash2,
@@ -33,9 +34,12 @@ type Props = {
   /** Convert a sub-bullet into an ad-hoc task on the picked day, tied to the objective. */
   onSubToTask: (
     objectiveId: string,
+    subBulletId: string,
     subText: string,
     day: DayName,
   ) => void;
+  /** Set of sub-bullet ids that currently have an active task on the visible week. */
+  activeSubBulletIds?: Set<string>;
   /** Which kind of objectives this panel manages. Defaults to "work". */
   kind?: ObjectiveKind;
 };
@@ -45,6 +49,7 @@ export function ObjectivesPanel({
   setObjectives,
   onCopyToNextWeek,
   onSubToTask,
+  activeSubBulletIds,
   kind = "work",
 }: Props) {
   const [text, setText] = useState("");
@@ -168,7 +173,10 @@ export function ObjectivesPanel({
             onRemove={() =>
               setObjectives(objectives.filter((x) => x.id !== o.id))
             }
-            onSubToTask={(subText, day) => onSubToTask(o.id, subText, day)}
+            onSubToTask={(sbId, subText, day) =>
+              onSubToTask(o.id, sbId, subText, day)
+            }
+            activeSubBulletIds={activeSubBulletIds}
             onCopyToNextWeek={
               onCopyToNextWeek ? () => copyOneToNextWeek(o) : undefined
             }
@@ -202,12 +210,14 @@ function ObjectiveRow({
   onChange,
   onRemove,
   onSubToTask,
+  activeSubBulletIds,
   onCopyToNextWeek,
 }: {
   objective: Objective;
   onChange: (next: Objective) => void;
   onRemove: () => void;
-  onSubToTask: (subText: string, day: DayName) => void;
+  onSubToTask: (subBulletId: string, subText: string, day: DayName) => void;
+  activeSubBulletIds?: Set<string>;
   onCopyToNextWeek?: () => void;
 }) {
   const [open, setOpen] = useState(true);
@@ -337,7 +347,9 @@ function ObjectiveRow({
 
       {open && (
         <div className="mt-2 ml-6 space-y-1">
-          {objective.subBullets.map((sb) => (
+          {objective.subBullets.map((sb) => {
+            const hasTask = !!activeSubBulletIds?.has(sb.id);
+            return (
             <div key={sb.id}>
               <div className="group flex items-start gap-2">
                 <button
@@ -362,6 +374,20 @@ function ObjectiveRow({
                     sb.done && "text-muted-foreground line-through",
                   )}
                 />
+                {hasTask && (
+                  <span
+                    title="A task for this sub-bullet exists this week"
+                    className="mt-1 inline-flex h-4 items-center gap-0.5 rounded-full border px-1 text-[8px] font-semibold uppercase tracking-wider"
+                    style={{
+                      borderColor: color,
+                      color: color,
+                      backgroundColor: `color-mix(in oklab, ${color} 12%, transparent)`,
+                    }}
+                  >
+                    <ListChecks className="h-2.5 w-2.5" />
+                    On list
+                  </span>
+                )}
                 <button
                   onClick={() =>
                     setPickFor(pickFor === sb.id ? null : sb.id)
@@ -391,7 +417,7 @@ function ObjectiveRow({
                     <button
                       key={d}
                       onClick={() => {
-                        onSubToTask(sb.text, d);
+                        onSubToTask(sb.id, sb.text, d);
                         setPickFor(null);
                       }}
                       className="rounded-full border border-rule px-2 py-0.5 text-[10px] uppercase tracking-wider text-ink hover:border-ink hover:bg-accent"
@@ -402,7 +428,8 @@ function ObjectiveRow({
                 </div>
               )}
             </div>
-          ))}
+            );
+          })}
           <form
             onSubmit={(e) => {
               e.preventDefault();

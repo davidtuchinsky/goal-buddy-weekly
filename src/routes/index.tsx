@@ -172,6 +172,15 @@ function Index() {
   const doneTasks = allInstances.filter((t) => t.done).length;
   const progress = totalTasks ? Math.round((doneTasks / totalTasks) * 100) : 0;
 
+  /** Set of sub-bullet ids that have an active (non-done) ad-hoc task this week. */
+  const activeSubBulletIds = useMemo(() => {
+    const s = new Set<string>();
+    for (const t of week.adHoc) {
+      if (t.subBulletId && !t.done) s.add(t.subBulletId);
+    }
+    return s;
+  }, [week.adHoc]);
+
   const toggleInstance = (t: TaskInstance) => {
     if (t.libraryId && t.id.startsWith("rec:")) {
       const k = recurringKey(t.libraryId, t.day);
@@ -450,11 +459,28 @@ function Index() {
   /** Sub-bullet of a Big Rock → ad-hoc task on a chosen day, color-tied. */
   const subToTask = (
     objectiveId: string,
+    subBulletId: string,
     subText: string,
     day: DayName,
   ) => {
     const obj = objectives.find((o) => o.id === objectiveId);
-    addAdHoc(day, subText, objectiveId, obj?.kind ?? "work");
+    setWeek({
+      ...week,
+      adHoc: [
+        ...week.adHoc,
+        {
+          id: uid(),
+          subBulletId,
+          text: subText.trim(),
+          objectiveId,
+          kind: obj?.kind ?? "work",
+          day,
+          done: false,
+          order: nextOrder(day),
+          zone: 0,
+        },
+      ],
+    });
   };
 
   /* ------------- Cross-day drag context ------------- */
@@ -669,6 +695,7 @@ function Index() {
               setObjectives={setObjectives}
               onCopyToNextWeek={appendToNextWeekObjectives}
               onSubToTask={subToTask}
+              activeSubBulletIds={activeSubBulletIds}
               kind="work"
             />
             <ObjectivesPanel
@@ -676,6 +703,7 @@ function Index() {
               setObjectives={setObjectives}
               onCopyToNextWeek={appendToNextWeekObjectives}
               onSubToTask={subToTask}
+              activeSubBulletIds={activeSubBulletIds}
               kind="personal"
             />
           </section>
