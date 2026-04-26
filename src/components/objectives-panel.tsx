@@ -427,7 +427,8 @@ function ObjectiveRow({
                 </div>
               )}
             </div>
-          ))}
+            );
+          })}
           <form
             onSubmit={(e) => {
               e.preventDefault();
