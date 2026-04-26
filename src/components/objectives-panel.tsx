@@ -172,7 +172,10 @@ export function ObjectivesPanel({
             onRemove={() =>
               setObjectives(objectives.filter((x) => x.id !== o.id))
             }
-            onSubToTask={(subText, day) => onSubToTask(o.id, subText, day)}
+            onSubToTask={(sbId, subText, day) =>
+              onSubToTask(o.id, sbId, subText, day)
+            }
+            activeSubBulletIds={activeSubBulletIds}
             onCopyToNextWeek={
               onCopyToNextWeek ? () => copyOneToNextWeek(o) : undefined
             }
