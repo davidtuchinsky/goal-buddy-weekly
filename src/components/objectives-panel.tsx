@@ -346,7 +346,9 @@ function ObjectiveRow({
 
       {open && (
         <div className="mt-2 ml-6 space-y-1">
-          {objective.subBullets.map((sb) => (
+          {objective.subBullets.map((sb) => {
+            const hasTask = !!activeSubBulletIds?.has(sb.id);
+            return (
             <div key={sb.id}>
               <div className="group flex items-start gap-2">
                 <button
@@ -371,6 +373,20 @@ function ObjectiveRow({
                     sb.done && "text-muted-foreground line-through",
                   )}
                 />
+                {hasTask && (
+                  <span
+                    title="A task for this sub-bullet exists this week"
+                    className="mt-1 inline-flex h-4 items-center gap-0.5 rounded-full border px-1 text-[8px] font-semibold uppercase tracking-wider"
+                    style={{
+                      borderColor: color,
+                      color: color,
+                      backgroundColor: `color-mix(in oklab, ${color} 12%, transparent)`,
+                    }}
+                  >
+                    <ListChecks className="h-2.5 w-2.5" />
+                    On list
+                  </span>
+                )}
                 <button
                   onClick={() =>
                     setPickFor(pickFor === sb.id ? null : sb.id)
@@ -400,7 +416,7 @@ function ObjectiveRow({
                     <button
                       key={d}
                       onClick={() => {
-                        onSubToTask(sb.text, d);
+                        onSubToTask(sb.id, sb.text, d);
                         setPickFor(null);
                       }}
                       className="rounded-full border border-rule px-2 py-0.5 text-[10px] uppercase tracking-wider text-ink hover:border-ink hover:bg-accent"
