@@ -69,6 +69,8 @@ export type TaskInstance = {
   id: string;
   /** Source library task id (if generated from library) */
   libraryId?: string;
+  /** Source big-rock sub-bullet id (if generated from a big rock sub-bullet) */
+  subBulletId?: string;
   /** Snapshot of text at creation time (so library edits don't rewrite history) */
   text: string;
   objectiveId?: string;
