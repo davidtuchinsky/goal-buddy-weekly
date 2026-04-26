@@ -209,12 +209,14 @@ function ObjectiveRow({
   onChange,
   onRemove,
   onSubToTask,
+  activeSubBulletIds,
   onCopyToNextWeek,
 }: {
   objective: Objective;
   onChange: (next: Objective) => void;
   onRemove: () => void;
-  onSubToTask: (subText: string, day: DayName) => void;
+  onSubToTask: (subBulletId: string, subText: string, day: DayName) => void;
+  activeSubBulletIds?: Set<string>;
   onCopyToNextWeek?: () => void;
 }) {
   const [open, setOpen] = useState(true);
