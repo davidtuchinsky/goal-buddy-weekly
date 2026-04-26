@@ -394,6 +394,20 @@ function SortableTask({
 
       {!editing && (
         <div className="relative mt-0.5 flex items-center gap-1">
+          {onMoveToNextZone && (
+            <button
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                onMoveToNextZone();
+              }}
+              className="text-muted-foreground opacity-0 transition-opacity hover:text-ink group-hover:opacity-100"
+              aria-label="Move to next energy block"
+              title="Move to next energy block"
+            >
+              <ChevronsDown className="h-3.5 w-3.5" />
+            </button>
+          )}
           <button
             onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => {
