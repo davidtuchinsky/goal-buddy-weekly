@@ -187,6 +187,15 @@ export function DayCard({
                           onCopyToDay={(targetDay) =>
                             onCopyInstanceToDay(t, targetDay)
                           }
+                          onMoveToNextZone={
+                            zone < 3
+                              ? () =>
+                                  onMoveInstanceToZone(
+                                    t,
+                                    (zone + 1) as TaskZone,
+                                  )
+                              : undefined
+                          }
                         />
                       );
                     })}
