@@ -3,6 +3,7 @@ import {
   Briefcase,
   Check,
   ChevronDown,
+  ChevronsDown,
   Copy,
   CornerUpRight,
   Heart,
