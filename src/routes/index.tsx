@@ -450,11 +450,28 @@ function Index() {
   /** Sub-bullet of a Big Rock → ad-hoc task on a chosen day, color-tied. */
   const subToTask = (
     objectiveId: string,
+    subBulletId: string,
     subText: string,
     day: DayName,
   ) => {
     const obj = objectives.find((o) => o.id === objectiveId);
-    addAdHoc(day, subText, objectiveId, obj?.kind ?? "work");
+    setWeek({
+      ...week,
+      adHoc: [
+        ...week.adHoc,
+        {
+          id: uid(),
+          subBulletId,
+          text: subText.trim(),
+          objectiveId,
+          kind: obj?.kind ?? "work",
+          day,
+          done: false,
+          order: nextOrder(day),
+          zone: 0,
+        },
+      ],
+    });
   };
 
   /* ------------- Cross-day drag context ------------- */
