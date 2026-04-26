@@ -261,6 +261,7 @@ function SortableTask({
   onRemove,
   onUpdateText,
   onCopyToDay,
+  onMoveToNextZone,
 }: {
   task: TaskInstance;
   color?: string;
@@ -269,6 +270,7 @@ function SortableTask({
   onRemove: () => void;
   onUpdateText: (text: string) => void;
   onCopyToDay: (targetDay: DayName) => void;
+  onMoveToNextZone?: () => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(task.text);
