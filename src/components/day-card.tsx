@@ -77,6 +77,7 @@ export function DayCard({
   onAddFromLibrary,
   onCopyUnfinishedToNext,
   onCopyInstanceToDay,
+  onMoveInstanceToZone,
   onToggleRitual,
 }: Props) {
   const done = instances.filter((t) => t.done).length;
