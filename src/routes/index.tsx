@@ -172,6 +172,15 @@ function Index() {
   const doneTasks = allInstances.filter((t) => t.done).length;
   const progress = totalTasks ? Math.round((doneTasks / totalTasks) * 100) : 0;
 
+  /** Set of sub-bullet ids that have an active (non-done) ad-hoc task this week. */
+  const activeSubBulletIds = useMemo(() => {
+    const s = new Set<string>();
+    for (const t of week.adHoc) {
+      if (t.subBulletId && !t.done) s.add(t.subBulletId);
+    }
+    return s;
+  }, [week.adHoc]);
+
   const toggleInstance = (t: TaskInstance) => {
     if (t.libraryId && t.id.startsWith("rec:")) {
       const k = recurringKey(t.libraryId, t.day);
