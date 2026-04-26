@@ -48,6 +48,7 @@ export function ObjectivesPanel({
   setObjectives,
   onCopyToNextWeek,
   onSubToTask,
+  activeSubBulletIds,
   kind = "work",
 }: Props) {
   const [text, setText] = useState("");
