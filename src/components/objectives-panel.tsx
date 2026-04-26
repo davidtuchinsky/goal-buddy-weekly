@@ -7,6 +7,7 @@ import {
   ChevronRight,
   CopyPlus,
   Heart,
+  ListChecks,
   Plus,
   Target,
   Trash2,
