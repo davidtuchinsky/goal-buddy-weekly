@@ -3,6 +3,7 @@ import {
   Briefcase,
   Check,
   ChevronDown,
+  ChevronsDown,
   Copy,
   CornerUpRight,
   Heart,
@@ -54,6 +55,7 @@ type Props = {
   onAddFromLibrary: (lib: LibraryTask, zone: TaskZone) => void;
   onCopyUnfinishedToNext: () => void;
   onCopyInstanceToDay: (instance: TaskInstance, targetDay: DayName) => void;
+  onMoveInstanceToZone: (instance: TaskInstance, targetZone: TaskZone) => void;
   onToggleRitual: (ritualId: string) => void;
 };
 
@@ -75,6 +77,7 @@ export function DayCard({
   onAddFromLibrary,
   onCopyUnfinishedToNext,
   onCopyInstanceToDay,
+  onMoveInstanceToZone,
   onToggleRitual,
 }: Props) {
   const done = instances.filter((t) => t.done).length;
@@ -184,6 +187,15 @@ export function DayCard({
                           onCopyToDay={(targetDay) =>
                             onCopyInstanceToDay(t, targetDay)
                           }
+                          onMoveToNextZone={
+                            zone < 3
+                              ? () =>
+                                  onMoveInstanceToZone(
+                                    t,
+                                    (zone + 1) as TaskZone,
+                                  )
+                              : undefined
+                          }
                         />
                       );
                     })}
@@ -249,6 +261,7 @@ function SortableTask({
   onRemove,
   onUpdateText,
   onCopyToDay,
+  onMoveToNextZone,
 }: {
   task: TaskInstance;
   color?: string;
@@ -257,6 +270,7 @@ function SortableTask({
   onRemove: () => void;
   onUpdateText: (text: string) => void;
   onCopyToDay: (targetDay: DayName) => void;
+  onMoveToNextZone?: () => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(task.text);
@@ -380,6 +394,20 @@ function SortableTask({
 
       {!editing && (
         <div className="relative mt-0.5 flex items-center gap-1">
+          {onMoveToNextZone && (
+            <button
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                onMoveToNextZone();
+              }}
+              className="text-muted-foreground opacity-0 transition-opacity hover:text-ink group-hover:opacity-100"
+              aria-label="Move to next energy block"
+              title="Move to next energy block"
+            >
+              <ChevronsDown className="h-3.5 w-3.5" />
+            </button>
+          )}
           <button
             onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => {
