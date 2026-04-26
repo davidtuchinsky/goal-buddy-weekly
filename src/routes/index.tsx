@@ -686,6 +686,7 @@ function Index() {
               setObjectives={setObjectives}
               onCopyToNextWeek={appendToNextWeekObjectives}
               onSubToTask={subToTask}
+              activeSubBulletIds={activeSubBulletIds}
               kind="work"
             />
             <ObjectivesPanel
@@ -693,6 +694,7 @@ function Index() {
               setObjectives={setObjectives}
               onCopyToNextWeek={appendToNextWeekObjectives}
               onSubToTask={subToTask}
+              activeSubBulletIds={activeSubBulletIds}
               kind="personal"
             />
           </section>
