@@ -55,6 +55,7 @@ type Props = {
   onAddFromLibrary: (lib: LibraryTask, zone: TaskZone) => void;
   onCopyUnfinishedToNext: () => void;
   onCopyInstanceToDay: (instance: TaskInstance, targetDay: DayName) => void;
+  onMoveInstanceToZone: (instance: TaskInstance, targetZone: TaskZone) => void;
   onToggleRitual: (ritualId: string) => void;
 };
 
