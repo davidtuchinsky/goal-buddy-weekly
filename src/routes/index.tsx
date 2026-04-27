@@ -374,25 +374,9 @@ function Index() {
     }
   };
 
-  /** Copy a single instance to another day (preserves source, creates ad-hoc copy). */
+  /** Move a single instance to another day (removes from source). */
   const copyInstanceToDay = (t: TaskInstance, targetDay: DayName) => {
-    setWeek({
-      ...week,
-      adHoc: [
-        ...week.adHoc,
-        {
-          id: uid(),
-          libraryId: t.libraryId,
-          text: t.text,
-          objectiveId: t.objectiveId,
-          kind: t.kind ?? "work",
-          day: targetDay,
-          done: false,
-          order: nextOrder(targetDay),
-          zone: t.zone ?? 0,
-        },
-      ],
-    });
+    moveInstanceTo(t.id, targetDay, (t.zone ?? 1) as TaskZone);
   };
 
   /** Copy unfinished ad-hoc (non-recurring) tasks for `day` to next day. */
