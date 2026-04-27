@@ -412,13 +412,25 @@ function SortableTask({
             onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => {
               e.stopPropagation();
-              setCopyOpen((v) => !v);
+              onCopyToDay(nextDay(currentDay));
             }}
             className="text-muted-foreground opacity-0 transition-opacity hover:text-ink group-hover:opacity-100"
-            aria-label="Copy to day"
-            title="Copy to another day"
+            aria-label={`Move to ${nextDay(currentDay)}`}
+            title={`Move to ${nextDay(currentDay)}`}
           >
-            <CornerUpRight className="h-3.5 w-3.5" />
+            <ChevronsRight className="h-3.5 w-3.5" />
+          </button>
+          <button
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              setCopyOpen((v) => !v);
+            }}
+            className="-ml-1 text-muted-foreground opacity-0 transition-opacity hover:text-ink group-hover:opacity-100"
+            aria-label="Move to another day"
+            title="Move to another day…"
+          >
+            <ChevronDown className="h-3 w-3" />
           </button>
           <button
             onPointerDown={(e) => e.stopPropagation()}
