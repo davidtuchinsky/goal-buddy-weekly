@@ -452,7 +452,7 @@ function SortableTask({
                 className="absolute right-0 top-5 z-20 w-36 rounded-md border border-rule bg-card p-1 shadow-md"
               >
                 <p className="px-2 py-1 text-[9px] uppercase tracking-wider text-muted-foreground">
-                  Copy to…
+                  Move to…
                 </p>
                 {DAYS.filter((d) => d !== currentDay).map((d) => (
                   <button
