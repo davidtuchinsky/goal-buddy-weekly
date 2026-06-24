@@ -48,8 +48,6 @@ export const Route = createRootRoute({
       { name: "description", content: "My Weekly Goals is a personal productivity app for tracking weekly tasks and objectives." },
       { property: "og:description", content: "My Weekly Goals is a personal productivity app for tracking weekly tasks and objectives." },
       { name: "twitter:description", content: "My Weekly Goals is a personal productivity app for tracking weekly tasks and objectives." },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/9e2a95f7-8315-4ed7-8268-1222d0012734/id-preview-71b41b7b--b702ff3d-935c-41be-969e-ec6b43154597.lovable.app-1776783080670.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/9e2a95f7-8315-4ed7-8268-1222d0012734/id-preview-71b41b7b--b702ff3d-935c-41be-969e-ec6b43154597.lovable.app-1776783080670.png" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
