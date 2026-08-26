@@ -39,9 +39,11 @@ async function saveKey(key: string, value: unknown): Promise<void> {
 }
 
 const pendingWrites = new Map<string, unknown>();
+const dirtyKeys = new Set<string>();
 let flushScheduled = false;
 
 function scheduleWrite(key: string, value: unknown) {
+  dirtyKeys.add(key);
   pendingWrites.set(key, value);
   if (flushScheduled) return;
   flushScheduled = true;
@@ -55,7 +57,12 @@ async function flushWrites() {
   pendingWrites.clear();
   setSyncStatus("syncing");
   try {
-    await Promise.all(batch.map(([k, v]) => saveKey(k, v)));
+    await Promise.all(
+      batch.map(async ([k, v]) => {
+        await saveKey(k, v);
+        if (!pendingWrites.has(k)) dirtyKeys.delete(k);
+      }),
+    );
     setSyncStatus("saved");
   } catch (err) {
     if (!navigator.onLine) {
@@ -64,6 +71,7 @@ async function flushWrites() {
     } else {
       console.error("sync write failed", err);
       setSyncStatus("error");
+      for (const [k] of batch) if (!pendingWrites.has(k)) dirtyKeys.delete(k);
     }
   }
 }
@@ -110,7 +118,9 @@ function ensureRealtime() {
       { event: "*", schema: "public", table: APP_STATE_TABLE },
       (payload) => {
         const row = payload.new as { key: string; value: unknown } | null;
-        if (row) notifyKey(row.key, row.value);
+        if (!row) return;
+        if (dirtyKeys.has(row.key)) return;
+        notifyKey(row.key, row.value);
       },
     )
     .subscribe();
