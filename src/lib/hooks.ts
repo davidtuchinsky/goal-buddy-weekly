@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from "react";
-import { useLocalStorage } from "@/lib/storage";
+import { useLocalStorage, writeKey } from "@/lib/storage";
 import {
   EMPTY_WEEK,
   type BacklogItem,
@@ -82,15 +82,12 @@ export function useWeekObjectives(weekStart: Date) {
  */
 export function useAppendToNextWeekObjectives(weekStart: Date) {
   const nextKey = `weekly:objectives:${weekKey(addDays(weekStart, 7))}`;
-  return (toAppend: Objective[]) => {
+  return async (toAppend: Objective[]) => {
     if (toAppend.length === 0) return;
     try {
       const raw = window.localStorage.getItem(nextKey);
       const existing = raw ? (JSON.parse(raw) as Objective[]) : [];
-      window.localStorage.setItem(
-        nextKey,
-        JSON.stringify([...existing, ...toAppend]),
-      );
+      await writeKey(nextKey, [...existing, ...toAppend]);
     } catch {
       /* ignore */
     }

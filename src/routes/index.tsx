@@ -52,6 +52,7 @@ import { DayCard } from "@/components/day-card";
 import { EnergyRitualsDrawer } from "@/components/energy-rituals-drawer";
 import { BacklogPanel } from "@/components/backlog-panel";
 import { RadarPanel } from "@/components/radar-panel";
+import { useSyncStatus } from "@/lib/storage";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -61,6 +62,7 @@ function Index() {
   const [cursor, setCursor] = useState<Date>(() => startOfWeek(new Date()));
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [ritualsOpen, setRitualsOpen] = useState(false);
+  const syncStatus = useSyncStatus();
 
   const {
     library,
@@ -748,7 +750,13 @@ function Index() {
         </DndContext>
 
         <footer className="mt-16 border-t border-rule pt-6 text-center text-xs uppercase tracking-[0.2em] text-muted-foreground">
-          Saved locally in your browser
+          {syncStatus === "offline"
+            ? "Offline — changes will sync when reconnected"
+            : syncStatus === "error"
+              ? "Sync error — retrying"
+              : syncStatus === "syncing"
+                ? "Syncing…"
+                : "Synced across your devices"}
         </footer>
       </main>
 
