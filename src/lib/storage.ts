@@ -40,11 +40,13 @@ async function saveKey(key: string, value: unknown): Promise<void> {
 
 const pendingWrites = new Map<string, unknown>();
 const dirtyKeys = new Set<string>();
+const lastWrittenJson = new Map<string, string>();
 let flushScheduled = false;
 
 function scheduleWrite(key: string, value: unknown) {
   dirtyKeys.add(key);
   pendingWrites.set(key, value);
+  lastWrittenJson.set(key, JSON.stringify(value));
   if (flushScheduled) return;
   flushScheduled = true;
   queueMicrotask(flushWrites);
@@ -86,12 +88,9 @@ export async function writeKey(key: string, value: unknown): Promise<void> {
   scheduleWrite(key, value);
 }
 
-const localCache = new Map<string, unknown>();
-const loadedKeys = new Set<string>();
 const keySubscribers = new Map<string, Set<(v: unknown) => void>>();
 
 function notifyKey(key: string, value: unknown) {
-  localCache.set(key, value);
   const subs = keySubscribers.get(key);
   if (subs) for (const s of subs) s(value);
 }
@@ -120,6 +119,9 @@ function ensureRealtime() {
         const row = payload.new as { key: string; value: unknown } | null;
         if (!row) return;
         if (dirtyKeys.has(row.key)) return;
+        const lastJson = lastWrittenJson.get(row.key);
+        if (lastJson !== undefined && lastJson === JSON.stringify(row.value))
+          return;
         notifyKey(row.key, row.value);
       },
     )
@@ -133,11 +135,13 @@ window.addEventListener("online", () => {
 export function useLocalStorage<T>(key: string, initial: T) {
   const [value, setValue] = useState<T>(initial);
   const [hydrated, setHydrated] = useState(false);
-  const firstLoad = useRef(true);
+  const skipNextWrite = useRef(true);
 
   ensureRealtime();
 
   useEffect(() => {
+    setHydrated(false);
+    skipNextWrite.current = true;
     let cancelled = false;
     (async () => {
       try {
@@ -159,7 +163,6 @@ export function useLocalStorage<T>(key: string, initial: T) {
             /* ignore */
           }
         }
-        loadedKeys.add(key);
         setHydrated(true);
       } catch (err) {
         if (!navigator.onLine) {
@@ -191,11 +194,10 @@ export function useLocalStorage<T>(key: string, initial: T) {
 
   useEffect(() => {
     if (!hydrated) return;
-    if (firstLoad.current) {
-      firstLoad.current = false;
+    if (skipNextWrite.current) {
+      skipNextWrite.current = false;
       return;
     }
-    notifyKey(key, value);
     try {
       window.localStorage.setItem(key, JSON.stringify(value));
     } catch {

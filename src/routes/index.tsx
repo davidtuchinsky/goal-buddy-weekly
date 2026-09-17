@@ -53,6 +53,8 @@ import { EnergyRitualsDrawer } from "@/components/energy-rituals-drawer";
 import { BacklogPanel } from "@/components/backlog-panel";
 import { RadarPanel } from "@/components/radar-panel";
 import { useSyncStatus } from "@/lib/storage";
+import { WinningDayDialog } from "@/components/winning-day-dialog";
+import { Sun } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -62,6 +64,7 @@ function Index() {
   const [cursor, setCursor] = useState<Date>(() => startOfWeek(new Date()));
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [ritualsOpen, setRitualsOpen] = useState(false);
+  const [winningDayOpen, setWinningDayOpen] = useState(false);
   const syncStatus = useSyncStatus();
 
   const {
@@ -592,6 +595,12 @@ function Index() {
               </h1>
             </div>
             <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={() => setWinningDayOpen(true)}
+                className="inline-flex h-10 items-center gap-2 rounded-full bg-primary px-5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-primary/90 hover:shadow-md"
+              >
+                <Sun className="h-4 w-4" /> Winning Day
+              </button>
               <UndoButton
                 history={undo.history as never}
                 onUndoLast={undo.undoLast}
@@ -773,6 +782,7 @@ function Index() {
         rituals={rituals}
         setRituals={setRituals}
       />
+      <WinningDayDialog open={winningDayOpen} onOpenChange={setWinningDayOpen} />
     </div>
   );
 }
